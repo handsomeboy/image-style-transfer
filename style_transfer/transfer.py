@@ -39,7 +39,7 @@ class Transfer:
 
   def get_content_loss(self, image):
     image_content = self.get_content_features(image)
-    
+    print(image_content.shape) 
     loss = 0.0
     # Iterate over each filter, i.
     for i in range(self.target_content.shape[3]):
@@ -48,11 +48,10 @@ class Transfer:
         for y in range(self.target_content.shape[1]):
           F = image_content[(0, x, y, i)]
           P = self.target_content[(0, x, y, i)]
-          
           loss += (F - P) ** 2.0
 
     return loss / 2.0
-
+  
   def get_style_features(self, image):
     style = []
 
