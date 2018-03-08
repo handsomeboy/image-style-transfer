@@ -20,9 +20,9 @@ synthetic_name += os.path.splitext(content_path)[0].split("/")[-1]
 transfer = Transfer(style_path, content_path, WIDTH, HEIGHT)
 
 # test content transfer
-# transfer.transfer_only_content(img = True, step_size = 0.001, iters = 100, out_dir = DATA_OUTPUT)
+# transfer.transfer_only_content(step_size = 0.001, iters = 100, out_dir = DATA_OUTPUT)
 
 # test style transfer
-transfer.transfer_only_style(step_size = 10.0, iters = 2, out_dir = DATA_OUTPUT)
+transfer.transfer_only_style(step_size = 10.0, iters = 10, out_dir = DATA_OUTPUT)
 
 
