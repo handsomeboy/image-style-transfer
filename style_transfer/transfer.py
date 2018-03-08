@@ -53,7 +53,12 @@ class Transfer:
   #############################################################################
 
   def get_content_features(self, image):
-    return self.sess.run(self.vgg.conv4_2, feed_dict={self.image : image})[0]
+    # return self.sess.run(self.vgg.conv4_2, feed_dict={self.image : image})[0]
+    out = self.sess.run(self.vgg.conv4_2, feed_dict={self.image : image})[0]
+    print('-------')
+    print('get_content_features')
+    print(out.shape)
+    return out
 
 
   def get_content_loss(self, image):
@@ -138,6 +143,11 @@ class Transfer:
       return np.mean(loss)
 
 
+  # def get_content_loss_function(self):
+  #   F_minus_P = self.vgg.conv4_2 - tf.constant(self.target_content)
+  #   F_minus_P_2 = 0.5 * tf.square(F_minus_P)
+  #   return tf.reduce_sum(F_minus_P_2)
+
   # style representation
   # loss_style = sum(weighting_l * E_l)
   def get_style_loss_function(self, generated_image):
@@ -163,55 +173,71 @@ class Transfer:
 
 
   def get_style_loss_gradient(self, generated_image):
-    loss = self.get_style_loss_function(generated_image)
-
-    num_layer = 5
-
-    # F = self.target_style
-    # TODO: don't know if this is right to compute matrix F
-    F = []
-    for l in range(num_layer):
-      F.append(np.mean(self.target_style[l], 2))
-    A = self.get_gram_matrix(self.target_style)
-    G = self.get_gram_matrix(self.get_style_features(generated_image))
-
-    losses = []
-
-    for l in range(num_layer):
-      print('-----')
-      print('>>   ON LAYER {}'.format(l))
-      print("F: {}".format(F[l].shape))
-      print("A: {}".format(A[l].shape))
-      print("G: {}".format(G[l].shape))
-      w = A[l].shape[0]
-      h = A[l].shape[1]
-      loss = np.ndarray((w, h), dtype=float)
-
-
-      print('-----------------')
-      print(A[l].shape)
-      N_l = A[l].shape[0]
-      M_l = F[l].shape[0] * F[l].shape[1]
-
-      print('width height {}, {}'.format(w, h))
-
-      for i in range(w):
-        for j in range(h):
-          # print('searching {}, {} with loss {}'.format(i, j, F[l][i,j]))
-          # TODO: is this how i get i and j?
-          if F[l][i, j] < 0:
-            loss[i, j] = 0
-          else:
-            loss[i, j] = (1 / (N_l**2 * M_l**2)) * F[l][i,j] * (G[l][j,i] - A[l][j,i])
-            # (1 / (N_l**2 * M_l**2)) * F[l].transpose() * (G[l] - A[l])
-
-      losses.append(loss)
-
-    w_l = 0.2
-    loss = w_l * sum(losses)  # sum of all 5 arrays in list
-
+    print('-------------')
+    print('get_style_loss_gradient')
+    loss_fxn = self.get_style_loss_function(generated_image)
+    print(loss_fxn)
+    loss = tf.convert_to_tensor(loss_fxn)
+    print(loss)
+    print(loss.shape)
     gr = tf.gradients(loss, self.image)
+    print(gr)
     return self.sess.run(gr, {self.image : generated_image})[0]
+
+
+    # num_layer = 5
+
+    # # F = self.target_style
+    # # TODO: don't know if this is right to compute matrix F
+    # F = []
+    # for l in range(num_layer):
+    #   r = self.target_style[l].shape[2]
+    #   c = self.target_style[l].shape[0]**2
+    #   F.append(np.reshape(self.target_style[l], (r, c)))
+    # A = self.get_gram_matrix(self.target_style)
+    # G = self.get_gram_matrix(self.get_style_features(generated_image))
+
+    # gr_losses = []
+
+    # for l in range(num_layer):
+    #   print('-----')
+    #   print('>>   ON LAYER {}'.format(l))
+    #   print("F: {}".format(F[l].shape))
+    #   print("A: {}".format(A[l].shape))
+    #   print("G: {}".format(G[l].shape))
+    #   w = A[l].shape[0]
+    #   h = A[l].shape[1]
+    #   loss = np.ndarray((w, h), dtype=float)
+
+    #   print('-----------------')
+    #   print(A[l].shape)
+    #   N_l = A[l].shape[0]
+    #   M_l = F[l].shape[0] * F[l].shape[1]
+
+    #   print('width height {}, {}'.format(w, h))
+
+    #   # if F[l]_i,j < 0, then deriv should be 0
+    #   F_use = np.clip(F[l].transpose(), 0, None)
+    #   loss = (1 / (N_l**2 * M_l**2)) * F_use.dot(G[l] - A[l])
+
+    #   gr_losses.append(loss)
+    #   # print('loss on layer {} is {}'.format(l, gr_losses[-1]))
+
+    # # w_l = 0.2
+    # # loss = w_l * sum(gr_losses)  # sum of all 5 arrays in list
+    # # print('total loss is ', loss)
+
+    # # try returning only layer 4, with size that matches
+    # return gr_losses[3]
+    # # return gr_losses
+
+    # # losses = tf.convert_to_tensor(gr_losses, dtype=tf.float32)
+    # # # losses = tf.reduce_sum(gr_losses, 0)
+    # # gr = tf.gradients(losses, self.image)
+
+    # # print(losses)
+    # # print(gr)
+    # # return self.sess.run(gr, {self.image : generated_image})[0]
 
 
   #############################################################################
@@ -228,6 +254,7 @@ class Transfer:
     loss = []
     for i in range(iters):
       syn_gradient = self.get_content_loss_gradient(synthetic)
+      print('-------')
       synthetic -= step_size * syn_gradient
       loss.append(self.get_content_loss(synthetic))
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
@@ -254,6 +281,8 @@ class Transfer:
     loss = []
     for i in range(iters):
       syn_gradient = self.get_style_loss_gradient(synthetic)
+      for x in syn_gradient:
+        print(x.shape)
       synthetic -= step_size * syn_gradient
       loss.append(self.get_style_loss(synthetic))
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
