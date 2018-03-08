@@ -142,7 +142,6 @@ class Transfer:
 
 
   def get_style_loss_function(self, generated_image):
-    # A = self.get_gram_matrix(self.target_style)
     A = self.get_gram_matrix(self.get_style_features_var(self.style))
     G = self.get_gram_matrix(self.get_style_features_var(generated_image))
 
@@ -156,8 +155,6 @@ class Transfer:
     print('get_style_loss_function')
     E = []
     for l in range(self.num_layer):
-      print(A[l].shape)
-      print(G[l].shape)
       N_l = A[l].shape[0]                   # number of features
       M_l = A[l].shape[0] * A[l].shape[1]   # feature map size (number of features: h x w)
       G_minus_A = G[l] - A[l]
@@ -194,7 +191,6 @@ class Transfer:
     loss = []
     for i in range(iters):
       syn_gradient = self.get_content_loss_gradient(synthetic)
-      print('-------')
       synthetic -= step_size * syn_gradient
       loss.append(self.get_content_loss(synthetic))
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
@@ -221,8 +217,7 @@ class Transfer:
     loss = []
     for i in range(iters):
       syn_gradient = self.get_style_loss_gradient(synthetic)
-      for x in syn_gradient:
-        print(x.shape)
+      print('syn_gradient is {}'.format(syn_gradient).shape)
       synthetic -= step_size * syn_gradient
       loss.append(self.get_style_loss(synthetic))
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
