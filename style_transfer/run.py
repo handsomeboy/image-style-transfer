@@ -23,6 +23,6 @@ transfer = Transfer(style_path, content_path, WIDTH, HEIGHT)
 # transfer.transfer_only_content(step_size = 0.001, iters = 100, out_dir = DATA_OUTPUT)
 
 # test style transfer
-transfer.transfer_only_style(step_size = 10.0, iters = 10, out_dir = DATA_OUTPUT)
+transfer.transfer_only_style(step_size = 0.001, iters = 4, out_dir = DATA_OUTPUT)
 
 
