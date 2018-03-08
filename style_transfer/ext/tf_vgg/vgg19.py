@@ -31,6 +31,7 @@ class Vgg19:
         print("build model started")
        
         self.conv1_1 = self.conv_layer(bgr, "conv1_1")
+
         self.conv1_2 = self.conv_layer(self.conv1_1, "conv1_2")
         self.pool1 = self.avg_pool(self.conv1_2, 'pool1')
 
@@ -125,4 +126,7 @@ class Vgg19:
       ), axis=3)
 
       return rgb
+
+    def __getitem__(self, key):
+      return self.__dict__[key]
 

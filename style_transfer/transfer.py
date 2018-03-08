@@ -14,8 +14,10 @@ PAUSE_LEN = 0.01
 
 class Transfer:
 
-  def __init__(self, style, content, width = 240, height = 240, initial = None):
-    self.num_layer = 5
+  def __init__(self, style, content, width = 240, height = 240, initial = None, 
+               content_layers = ["conv4_2"], style_layers = ["conv1_1","conv2_1","conv3_1","conv4_1","conv5_1"]):
+    self.content_layers = content_layers
+    self.style_layers = style_layers
 
     # Desired size of output image
     self.width = width
@@ -56,23 +58,29 @@ class Transfer:
   #############################################################################
 
   def get_content_features(self, image):
-    return self.sess.run(self.vgg.conv4_2, feed_dict={self.image : image})[0]
-
+    content = {}
+    for layer in self.content_layers:
+      content[layer] = self.sess.run(self.vgg[layer], feed_dict={self.image : image})[0]
+    return content 
 
   def get_content_loss(self, image):
     loss = self.get_content_loss_function()
     return self.sess.run(loss, {self.image : image })
 
   def get_content_loss_function(self):
-    F_minus_P = self.vgg.conv4_2 - tf.constant(self.target_content)
-    F_minus_P_2 = 0.5 * tf.square(F_minus_P)
-    return tf.reduce_mean(F_minus_P_2)
-
+    content_layer_loss = []
+    for layer in self.content_layers:
+      F_minus_P = self.vgg[layer] - tf.constant(self.target_content[layer])
+      F_minus_P_2 = 0.5 * tf.square(F_minus_P)
+      content_layer_loss.append(tf.reduce_mean(F_minus_P_2))
+    return tf.reduce_mean(content_layer_loss)
 
   def get_content_loss_gradient(self, image):
     loss = self.get_content_loss_function()
     gr = tf.gradients(loss, self.image)
-    return self.sess.run(gr, {self.image : image})[0]
+    content_gradient = self.sess.run(gr, {self.image : image})[0]
+    content_loss = self.sess.run(loss, { self.image : image})
+    return (content_gradient, content_loss)
 
 
   #############################################################################
@@ -84,18 +92,15 @@ class Transfer:
 
     feed = {self.image : image}
 
-    style.append(self.vgg.conv1_1)
-    style.append(self.vgg.conv2_1)
-    style.append(self.vgg.conv3_1)
-    style.append(self.vgg.conv4_1)
-    style.append(self.vgg.conv5_1)
-
+    for layer in self.style_layers:
+      style.append(self.vgg[layer])
+    
     return style
 
 
   def get_gram_matrix(self, features):
     gram = []
-    for l in range(self.num_layer):
+    for l in range(len(self.style_layers)):
       num_feature = self.sess.run(tf.shape(features[l])[3])
       M_l = self.sess.run(tf.shape(features[l])[1])
       A = tf.reshape(features[l], [M_l ** 2, num_feature])
@@ -117,13 +122,13 @@ class Transfer:
     # test gram matrix
     G_run = self.sess.run(G[0], {self.image: generated_image})
 
-    for l in range(self.num_layer):
+    for l in range(len(A)):
       A[l] = self.sess.run(A[l], {self.image : self.style})
 
     print('--------')
     print('get_style_loss_function')
     E = []
-    for l in range(self.num_layer):
+    for l in range(len(self.style_layers)):
       N_l = A[l].shape[0]                   # number of features
       M_l = A[l].shape[0] * A[l].shape[1]   # feature map size (number of features: h x w)
       G_minus_A = G[l] - A[l]
@@ -160,10 +165,11 @@ class Transfer:
 
     loss = []
     for i in range(iters):
-      syn_gradient = self.get_content_loss_gradient(synthetic)
-      print('syn_gradient is {}'.format(syn_gradient.shape))
+
+      syn_gradient, syn_loss = self.get_content_loss_gradient(synthetic)
+      print('-------')
       synthetic -= step_size * syn_gradient
-      loss.append(self.get_content_loss(synthetic))
+      loss.append(syn_loss)
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
       plt.pause(PAUSE_LEN)
       print("Loss on iteration {}: {}".format(i, loss[-1]))

@@ -18,12 +18,13 @@ synthetic_name = os.path.splitext(style_path)[0].split("/")[-1]
 synthetic_name += "_on_"
 synthetic_name += os.path.splitext(content_path)[0].split("/")[-1]
 
-transfer = Transfer(style_path, content_path, WIDTH, HEIGHT)
+transfer = Transfer(style_path, content_path, WIDTH, HEIGHT,
+                    initial = None,
+                    content_layers = ["conv1_2", "conv4_2"])
 
 # test content transfer
-# transfer.transfer_only_content(step_size = 0.001, iters = 100, out_dir = DATA_OUTPUT)
+transfer.transfer_only_content(step_size = 1000, iters = 100, out_dir = DATA_OUTPUT)
 
 # test style transfer
 transfer.transfer_only_style(step_size = 5*1e-9, iters = 15, out_dir = DATA_OUTPUT)
-
 
