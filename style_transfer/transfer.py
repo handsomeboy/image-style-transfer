@@ -53,12 +53,7 @@ class Transfer:
   #############################################################################
 
   def get_content_features(self, image):
-    # return self.sess.run(self.vgg.conv4_2, feed_dict={self.image : image})[0]
-    out = self.sess.run(self.vgg.conv4_2, feed_dict={self.image : image})[0]
-    print('-------')
-    print('get_content_features')
-    print(out.shape)
-    return out
+    return self.sess.run(self.vgg.conv4_2, feed_dict={self.image : image})[0]
 
 
   def get_content_loss(self, image):
@@ -130,59 +125,90 @@ class Transfer:
     return gram
 
 
-    # TODO: update this function with other formula
-    def get_style_loss(self, image):
-      image_style = self.get_style_features(image)
-      target_style = self.target_style
-      loss = 0
-      num_feature = image_style.shape[2]
-      for i in range(num_feature):
-        f_minus_p = np.squeeze(image_style[:,:,i] - self.target_style[:,:,i])
-        loss += 0.5 * np.square(f_minus_p)
+  # TODO: update this function with other formula
+  def get_style_loss(self, image):
+    image_style = self.get_style_features(image)
+    target_style = self.target_style
+    loss = 0
+    num_feature = image_style.shape[2]
+    for i in range(num_feature):
+      f_minus_p = np.squeeze(image_style[:,:,i] - self.target_style[:,:,i])
+      loss += 0.5 * np.square(f_minus_p)
 
-      return np.mean(loss)
+    return np.mean(loss)
 
 
-  # def get_content_loss_function(self):
-  #   F_minus_P = self.vgg.conv4_2 - tf.constant(self.target_content)
-  #   F_minus_P_2 = 0.5 * tf.square(F_minus_P)
-  #   return tf.reduce_sum(F_minus_P_2)
-
-  # style representation
-  # loss_style = sum(weighting_l * E_l)
   def get_style_loss_function(self, generated_image):
     A = self.get_gram_matrix(self.target_style)
     G = self.get_gram_matrix(self.get_style_features(generated_image))
 
-    # w_l = 0.2 for conv1_1, 2_1, 3_1, 4_1, and 5_1
-    # w_l = 0 on all others
-    w_l = 0.2
+    E = []
     num_layer = 5
-
-    loss = 0
     for l in range(num_layer):
+      N_l = A[l].shape[0]
       M_l = A[l].shape[0] * A[l].shape[1]  # feature map size (number of features: h x w)
-      
-      # E_l = 1 / (4 * N_l^2 * M_l^2) * sum( (G_l[i,j] - A_l[i,j])**2 )       
-      # TODO: do I want to use np.squeeze() here? after subtracting
-      # TODO: do i use tf.reduce_sum instead of np.sum?
-      E_l = (4 * num_layer**2  * M_l **2) * (np.sum(np.square(G[l] - A[l])))
-      loss += w_l * E_l
-    
-    return loss
+      G_minus_A = tf.constant(G[l]) - tf.constant(A[l])
+      G_minus_A_2 = 1 / (4 * N_l^2 * M_l^2) * tf.square(G_minus_A)
+      E.append(tf.reduce_sum(G_minus_A_2))
+
+    return E
 
 
   def get_style_loss_gradient(self, generated_image):
-    print('-------------')
-    print('get_style_loss_gradient')
-    loss_fxn = self.get_style_loss_function(generated_image)
-    print(loss_fxn)
-    loss = tf.convert_to_tensor(loss_fxn)
-    print(loss)
-    print(loss.shape)
-    gr = tf.gradients(loss, self.image)
+    loss = self.get_style_loss_function(generated_image)
+
+    gr = tf.gradients(loss[0], self.image)
+    print('image')
+    print(self.image.shape)
     print(gr)
-    return self.sess.run(gr, {self.image : generated_image})[0]
+    print(loss[0])
+    total = self.sess.run(gr, {self.image : generated_image})[0]
+
+    num_layer = 5
+    for l in range(1, num_layer):
+      gr = tf.gradients(loss[l], self.image)
+      total += self.sess.run(gr, {self.image : generated_image})[0]
+
+    print('-----')
+    print('get_style_loss_gradient')
+    print(total.shape)
+    return total
+
+  # style representation
+  # loss_style = sum(weighting_l * E_l)
+  # def get_style_loss_function(self, generated_image):
+  #   A = self.get_gram_matrix(self.target_style)
+  #   G = self.get_gram_matrix(self.get_style_features(generated_image))
+
+  #   # w_l = 0.2 for conv1_1, 2_1, 3_1, 4_1, and 5_1
+  #   # w_l = 0 on all others
+  #   w_l = 0.2
+  #   num_layer = 5
+
+  #   loss = 0
+  #   for l in range(num_layer):
+  #     M_l = A[l].shape[0] * A[l].shape[1]  # feature map size (number of features: h x w)
+      
+  #     # E_l = 1 / (4 * N_l^2 * M_l^2) * sum( (G_l[i,j] - A_l[i,j])**2 )       
+  #     # TODO: do I want to use np.squeeze() here? after subtracting
+  #     # TODO: do i use tf.reduce_sum instead of np.sum?
+  #     E_l = (4 * num_layer**2  * M_l **2) * (np.sum(np.square(G[l] - A[l])))
+  #     loss += w_l * E_l
+    
+  #   return loss
+
+
+  # def get_style_loss_gradient(self, generated_image):
+  #   print('-------------')
+  #   print('get_style_loss_gradient')
+  #   loss_fxn = self.get_style_loss_function(generated_image)
+  #   print(loss_fxn)
+  #   loss = tf.convert_to_tensor(loss_fxn)
+  #   print(loss)
+  #   print(loss.shape)
+  #   gr = tf.gradients(loss, self.image)
+  #   print(gr)
+  #   return self.sess.run(gr, {self.image : generated_image})[0]
 
 
     # num_layer = 5
