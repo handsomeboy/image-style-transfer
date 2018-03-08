@@ -68,11 +68,12 @@ class Transfer:
     F_minus_P_2 = 0.5 * tf.square(F_minus_P)
     return tf.reduce_mean(F_minus_P_2)
 
-
   def get_content_loss_gradient(self, image):
     loss = self.get_content_loss_function()
     gr = tf.gradients(loss, self.image)
-    return self.sess.run(gr, {self.image : image})[0]
+    content_gradient = self.sess.run(gr, {self.image : image})[0]
+    content_loss = self.sess.run(loss, { self.image : image})
+    return (content_gradient, content_loss)
 
 
   #############################################################################
@@ -172,10 +173,10 @@ class Transfer:
 
     loss = []
     for i in range(iters):
-      syn_gradient = self.get_content_loss_gradient(synthetic)
+      syn_gradient, syn_loss = self.get_content_loss_gradient(synthetic)
       print('-------')
       synthetic -= step_size * syn_gradient
-      loss.append(self.get_content_loss(synthetic))
+      loss.append(syn_loss)
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
       plt.pause(PAUSE_LEN)
       print("Loss on iteration {}: {}".format(i, loss[-1]))
