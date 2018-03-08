@@ -115,25 +115,12 @@ class Transfer:
 
 
   def get_gram_matrix(self, features):
-    # Gram matrix for each layer
     gram = []
     for l in range(self.num_layer):
       num_feature = self.sess.run(tf.shape(features[l])[3])
-      print("layer {} with {} features".format(l, num_feature))
-#      gram.append(np.ndarray((num_feature, num_feature), dtype=float))
-      #gram.append(((num_feature, num_feature), dtype = tf.float32))
-      gram.append(tf.Variable(tf.zeros([num_feature, num_feature], dtype=tf.float32), dtype=tf.float32))
-      # gram.append(tf.placeholder("float", [num_feature, num_feature]))
-      n = 0
-      for i in range(num_feature):
-        for j in range(num_feature):
-          if n % 100 == 0:
-            print(n)
-          # compute inner product of vectorized feature maps
-          X = features[l][0,:,:,i]
-          Y = features[l][0,:,:,j]
-          gram[l][i,j].assign(tf.reduce_sum(tf.multiply(X, Y)))
-          n+=1
+      M_l = self.sess.run(tf.shape(features[l])[1])
+      A = tf.reshape(features[l], [M_l ** 2, num_feature])
+      gram.append(tf.matmul(A, A, transpose_a = True))
 
     return gram
 
