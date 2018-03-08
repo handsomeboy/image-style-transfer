@@ -10,7 +10,7 @@ from ext.tf_vgg import vgg19, utils
 
 
 # length to pause when displaying plots
-PAUSE_LEN = 0.2
+PAUSE_LEN = 0.01
 
 class Transfer:
 
@@ -104,20 +104,10 @@ class Transfer:
     return gram
 
 
-  # TODO: fill this in
-  def get_style_loss(self, image):
-    print('------')
-    print('get_style_loss')
-    print('image is {}'.format(image.shape))
-
-    return None
-
+  def get_style_loss(self, image, loss):
     # style representation
     # loss_style = sum(weighting_l * E_l)
-
-    # w_l = 0.2
-    # loss = w_l * sum(gr_losses)  # sum of all 5 arrays in list
-    # print('total loss is ', loss)
+    return self.sess.run(loss, {self.image : image})
 
 
   def get_style_loss_function(self, generated_image):
@@ -139,8 +129,7 @@ class Transfer:
       G_minus_A = G[l] - A[l]
       G_minus_A_2 = 1 / (4 * N_l^2 * M_l^2) * tf.square(G_minus_A)
       E.append(tf.reduce_sum(G_minus_A_2))
-
-      print('E of layer {} is {}'.format(l, E[-1]))
+      E_run = self.sess.run(E[-1], {self.image : generated_image})
 
     # get weighted sum, which is average
     return tf.reduce_mean(E)
@@ -150,10 +139,12 @@ class Transfer:
     loss = self.get_style_loss_function(generated_image)
     print('-----')
     print('get_style_loss_gradient')
-    print(loss)
     gr = tf.gradients(loss, self.image)
-    print(gr)
-    return self.sess.run(gr, {self.image : generated_image})[0]
+    style_gradient = self.sess.run(gr, {self.image : generated_image})[0]
+    style_loss = loss
+
+    return (style_gradient, style_loss)
+
 
 
   #############################################################################
@@ -170,6 +161,7 @@ class Transfer:
     loss = []
     for i in range(iters):
       syn_gradient = self.get_content_loss_gradient(synthetic)
+      print('syn_gradient is {}'.format(syn_gradient.shape))
       synthetic -= step_size * syn_gradient
       loss.append(self.get_content_loss(synthetic))
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
@@ -190,27 +182,27 @@ class Transfer:
     synthetic = copy.copy(self.synthetic)   # get white noise image
 
     plt.title("Style Transfer")
-    plt.ion()
+    plt.ion()                               # interactive mode on
     im = plt.imshow(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
 
     loss = []
     for i in range(iters):
-      syn_gradient = self.get_style_loss_gradient(synthetic)
-      print('syn_gradient is {}'.format(syn_gradient).shape)
+      (syn_gradient, style_loss) = self.get_style_loss_gradient(synthetic)
+      print('syn_gradient is {}'.format(syn_gradient.shape))
       synthetic -= step_size * syn_gradient
-      loss.append(self.get_style_loss(synthetic))
+      loss.append(self.get_style_loss(synthetic, style_loss))
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
       plt.pause(PAUSE_LEN)
       print("Loss on iteration {}: {}".format(i, loss[-1]))
 
-    out = self.vgg.toRGB(synthetic)
-    out = np.clip(out, 0, 1)
-    skimage.io.imsave(os.path.join(out_dir, "style_only_transfer.jpg"), out[0])
+    # out = self.vgg.toRGB(synthetic)
+    # out = np.clip(out, 0, 1)
+    # skimage.io.imsave(os.path.join(out_dir, "style_only_transfer.jpg"), out[0])
 
-    plt.plot(loss)
-    plt.savefig(os.path.join(out_dir, "style_loss.jpg"))
+    # plt.plot(loss)
+    # plt.savefig(os.path.join(out_dir, "style_loss.jpg"))
 
-    return out
+    # return out
 
 
   #############################################################################
