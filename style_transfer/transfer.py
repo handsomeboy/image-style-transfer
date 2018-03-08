@@ -125,17 +125,23 @@ class Transfer:
     return gram
 
 
-  # TODO: update this function with other formula
+  # TODO: fill this in
   def get_style_loss(self, image):
-    image_style = self.get_style_features(image)
-    target_style = self.target_style
-    loss = 0
-    num_feature = image_style.shape[2]
-    for i in range(num_feature):
-      f_minus_p = np.squeeze(image_style[:,:,i] - self.target_style[:,:,i])
-      loss += 0.5 * np.square(f_minus_p)
+    print('------')
+    print('get_style_loss')
+    print('image is {}'.format(image.shape))
 
-    return np.mean(loss)
+    return None
+
+    # image_style = self.get_style_features(image)
+    # target_style = self.target_style
+    # loss = 0
+    # num_feature = image_style.shape[2]
+    # for i in range(num_feature):
+    #   f_minus_p = np.squeeze(image_style[:,:,i] - self.target_style[:,:,i])
+    #   loss += 0.5 * np.square(f_minus_p)
+
+    # return np.mean(loss)
 
 
   def get_style_loss_function(self, generated_image):
@@ -145,22 +151,26 @@ class Transfer:
 
     # test gram matrix
     G_run = self.sess.run(G[0], {self.image: generated_image})
-    print(G_run)
 
-    # A = self.sess.run(A, {self.image : self.style})
+    for l in range(self.num_layer):
+      A[l] = self.sess.run(A[l], {self.image : self.style})
 
-    # E = []
-    # for l in range(self.num_layer):
-    #   N_l = A[l].shape[0]                   # number of features
-    #   M_l = A[l].shape[0] * A[l].shape[1]   # feature map size (number of features: h x w)
-    #   G_minus_A = tf.constant(G[l]) - tf.constant(A[l])
-    #   G_minus_A_2 = 1 / (4 * N_l^2 * M_l^2) * tf.square(G_minus_A)
-    #   E.append(tf.reduce_sum(G_minus_A_2))
+    print('--------')
+    print('get_style_loss_function')
+    E = []
+    for l in range(self.num_layer):
+      print(A[l].shape)
+      print(G[l].shape)
+      N_l = A[l].shape[0]                   # number of features
+      M_l = A[l].shape[0] * A[l].shape[1]   # feature map size (number of features: h x w)
+      G_minus_A = G[l] - A[l]
+      G_minus_A_2 = 1 / (4 * N_l^2 * M_l^2) * tf.square(G_minus_A)
+      E.append(tf.reduce_sum(G_minus_A_2))
 
-    #   print('E of layer {} is {}'.format(l, E[-1]))
+      print('E of layer {} is {}'.format(l, E[-1]))
 
-    # # get weighted sum, which is average
-    # return tf.reduce_mean(E)
+    # get weighted sum, which is average
+    return tf.reduce_mean(E)
 
 
   def get_style_loss_gradient(self, generated_image):
