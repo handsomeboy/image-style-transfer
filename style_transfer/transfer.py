@@ -60,19 +60,13 @@ class Transfer:
 
 
   def get_content_loss(self, image):
-    image_content = self.get_content_features(image)
-    target_content = self.target_content
-    loss = 0
-    for i in range(image_content.shape[2]):
-      F_minus_P = np.squeeze(image_content[:,:,i] - self.target_content[:,:,i])
-      loss += 0.5 * np.square(F_minus_P)
-    return np.mean(loss)
-
+    loss = self.get_content_loss_function()
+    return self.sess.run(loss, {self.image : image })
 
   def get_content_loss_function(self):
     F_minus_P = self.vgg.conv4_2 - tf.constant(self.target_content)
     F_minus_P_2 = 0.5 * tf.square(F_minus_P)
-    return tf.reduce_sum(F_minus_P_2)
+    return tf.reduce_mean(F_minus_P_2)
 
 
   def get_content_loss_gradient(self, image):
@@ -86,21 +80,6 @@ class Transfer:
   #############################################################################
 
   def get_style_features(self, image):
-    style = []
-
-    feed = {self.image : image}
-
-    style.append(self.sess.run(self.vgg.conv1_1, feed_dict=feed)[0])
-    style.append(self.sess.run(self.vgg.conv2_1, feed_dict=feed)[0])
-    style.append(self.sess.run(self.vgg.conv3_1, feed_dict=feed)[0])
-    style.append(self.sess.run(self.vgg.conv4_1, feed_dict=feed)[0])
-    style.append(self.sess.run(self.vgg.conv5_1, feed_dict=feed)[0])
-
-    return style
-
-
-  # not executed
-  def get_style_features_var(self, image):
     style = []
 
     feed = {self.image : image}
@@ -143,8 +122,8 @@ class Transfer:
 
   def get_style_loss_function(self, generated_image):
     # A = self.get_gram_matrix(self.target_style)
-    A = self.get_gram_matrix(self.get_style_features_var(self.style))
-    G = self.get_gram_matrix(self.get_style_features_var(generated_image))
+    A = self.get_gram_matrix(self.get_style_features(self.style))
+    G = self.get_gram_matrix(self.get_style_features(generated_image))
 
     # test gram matrix
     G_run = self.sess.run(G[0], {self.image: generated_image})
