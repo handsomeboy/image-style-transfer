@@ -14,6 +14,8 @@ PAUSE_LEN = 0.2
 class Transfer:
 
   def __init__(self, style, content, width = 240, height = 240, initial = None):
+    self.num_layer = 5
+
     # Desired size of output image
     self.width = width
     self.height = height
@@ -96,31 +98,41 @@ class Transfer:
     return style
 
 
+  # not executed
+  def get_style_features_var(self, image):
+    style = []
+
+    feed = {self.image : image}
+
+    style.append(self.vgg.conv1_1)
+    style.append(self.vgg.conv2_1)
+    style.append(self.vgg.conv3_1)
+    style.append(self.vgg.conv4_1)
+    style.append(self.vgg.conv5_1)
+
+    return style
+
+
   def get_gram_matrix(self, features):
-    style = features
-
-    # vectorize feature maps
-    style_v = []
-    for l in range(5):
-      features = []
-      num_feature = style[l].shape[2]
-      for i in range(num_feature):
-        features.append(style[l][:,:,i].flatten())
-      style_v.append(features)
-
     # Gram matrix for each layer
-    num_layer = 5
     gram = []
-    for l in range(num_layer):
-      num_feature = style[l].shape[2]
+    for l in range(self.num_layer):
+      print('in get_gram_matrix')
+      print(tf.shape(features[l]))
+      print(tf.shape(features[l])[0])
+      num_feature = tf.shape(features[l])[2][0]
+      print(tf.shape(features[l])[2])
+      print(num_feature)
+
       gram.append(np.ndarray((num_feature, num_feature), dtype=float))
       # gram.append(tf.placeholder("float", [num_feature, num_feature]))
       for i in range(num_feature):
-        # vectorize feature map
         for j in range(num_feature):
-          # vectorize feature maps
           # compute inner product of vectorized feature maps
-          gram[l][i,j] = np.inner(style_v[l][i], style_v[l][j])
+          # X = tf.gather_nd(features[:,:,i]))
+          # Y = tf.gather_nd(features[:,:,j])
+          # gram[l][i,j] = tf.reduce_sum(tf.multiply(X, Y))
+          gram[l][i,j] = tf.reduce_sum(tf.multiply(features[:,:,i], features[:,:,j]))
 
     return gram
 
@@ -139,40 +151,58 @@ class Transfer:
 
 
   def get_style_loss_function(self, generated_image):
-    A = self.get_gram_matrix(self.target_style)
-    G = self.get_gram_matrix(self.get_style_features(generated_image))
+    # A = self.get_gram_matrix(self.target_style)
+    A = self.get_gram_matrix(self.get_style_features_var(self.style))
+    G = self.get_gram_matrix(self.get_style_features_var(generated_image))
 
-    E = []
-    num_layer = 5
-    for l in range(num_layer):
-      N_l = A[l].shape[0]
-      M_l = A[l].shape[0] * A[l].shape[1]  # feature map size (number of features: h x w)
-      G_minus_A = tf.constant(G[l]) - tf.constant(A[l])
-      G_minus_A_2 = 1 / (4 * N_l^2 * M_l^2) * tf.square(G_minus_A)
-      E.append(tf.reduce_sum(G_minus_A_2))
+    # test gram matrix
+    G_run = self.sess.run(G, {self.image: generated_image})
+    print(G_run)
 
-    return E
+    # A = self.sess.run(A, {self.image : self.style})
+
+    # E = []
+    # for l in range(self.num_layer):
+    #   N_l = A[l].shape[0]                   # number of features
+    #   M_l = A[l].shape[0] * A[l].shape[1]   # feature map size (number of features: h x w)
+    #   G_minus_A = tf.constant(G[l]) - tf.constant(A[l])
+    #   G_minus_A_2 = 1 / (4 * N_l^2 * M_l^2) * tf.square(G_minus_A)
+    #   E.append(tf.reduce_sum(G_minus_A_2))
+
+    #   print('E of layer {} is {}'.format(l, E[-1]))
+
+    # # get weighted sum, which is average
+    # return tf.reduce_mean(E)
 
 
   def get_style_loss_gradient(self, generated_image):
     loss = self.get_style_loss_function(generated_image)
-
-    gr = tf.gradients(loss[0], self.image)
-    print('image')
-    print(self.image.shape)
-    print(gr)
-    print(loss[0])
-    total = self.sess.run(gr, {self.image : generated_image})[0]
-
-    num_layer = 5
-    for l in range(1, num_layer):
-      gr = tf.gradients(loss[l], self.image)
-      total += self.sess.run(gr, {self.image : generated_image})[0]
-
     print('-----')
     print('get_style_loss_gradient')
-    print(total.shape)
-    return total
+    print(loss)
+    gr = tf.gradients(loss, self.image)
+    print(gr)
+    return self.sess.run(gr, {self.image : generated_image})[0]
+
+
+    # loss = self.get_style_loss_function(generated_image)
+
+    # gr = tf.gradients(loss[0], self.image)
+    # print('image')
+    # print(self.image.shape)
+    # print(gr)
+    # print(loss[0])
+    # total = self.sess.run(gr, {self.image : generated_image})[0]
+
+    # self.num_layer = 5
+    # for l in range(1, self.num_layer):
+    #   gr = tf.gradients(loss[l], self.image)
+    #   total += self.sess.run(gr, {self.image : generated_image})[0]
+
+    # print('-----')
+    # print('get_style_loss_gradient')
+    # print(total.shape)
+    # return total
 
   # style representation
   # loss_style = sum(weighting_l * E_l)
@@ -183,16 +213,16 @@ class Transfer:
   #   # w_l = 0.2 for conv1_1, 2_1, 3_1, 4_1, and 5_1
   #   # w_l = 0 on all others
   #   w_l = 0.2
-  #   num_layer = 5
+  #   self.num_layer = 5
 
   #   loss = 0
-  #   for l in range(num_layer):
+  #   for l in range(self.num_layer):
   #     M_l = A[l].shape[0] * A[l].shape[1]  # feature map size (number of features: h x w)
       
   #     # E_l = 1 / (4 * N_l^2 * M_l^2) * sum( (G_l[i,j] - A_l[i,j])**2 )       
   #     # TODO: do I want to use np.squeeze() here? after subtracting
   #     # TODO: do i use tf.reduce_sum instead of np.sum?
-  #     E_l = (4 * num_layer**2  * M_l **2) * (np.sum(np.square(G[l] - A[l])))
+  #     E_l = (4 * self.num_layer**2  * M_l **2) * (np.sum(np.square(G[l] - A[l])))
   #     loss += w_l * E_l
     
   #   return loss
@@ -211,12 +241,12 @@ class Transfer:
   #   return self.sess.run(gr, {self.image : generated_image})[0]
 
 
-    # num_layer = 5
+    # self.num_layer = 5
 
     # # F = self.target_style
     # # TODO: don't know if this is right to compute matrix F
     # F = []
-    # for l in range(num_layer):
+    # for l in range(self.num_layer):
     #   r = self.target_style[l].shape[2]
     #   c = self.target_style[l].shape[0]**2
     #   F.append(np.reshape(self.target_style[l], (r, c)))
@@ -225,7 +255,7 @@ class Transfer:
 
     # gr_losses = []
 
-    # for l in range(num_layer):
+    # for l in range(self.num_layer):
     #   print('-----')
     #   print('>>   ON LAYER {}'.format(l))
     #   print("F: {}".format(F[l].shape))
