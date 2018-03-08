@@ -4,6 +4,7 @@ import numpy as np
 import os
 import skimage.io
 import tensorflow as tf
+import pdb
 
 from ext.tf_vgg import vgg19, utils
 
@@ -117,22 +118,22 @@ class Transfer:
     # Gram matrix for each layer
     gram = []
     for l in range(self.num_layer):
-      print('in get_gram_matrix')
-      print(tf.shape(features[l]))
-      print(tf.shape(features[l])[0])
-      num_feature = tf.shape(features[l])[2][0]
-      print(tf.shape(features[l])[2])
-      print(num_feature)
-
-      gram.append(np.ndarray((num_feature, num_feature), dtype=float))
+      num_feature = self.sess.run(tf.shape(features[l])[3])
+      print("layer {} with {} features".format(l, num_feature))
+#      gram.append(np.ndarray((num_feature, num_feature), dtype=float))
+      #gram.append(((num_feature, num_feature), dtype = tf.float32))
+      gram.append(tf.Variable(tf.zeros([num_feature, num_feature], dtype=tf.float32), dtype=tf.float32))
       # gram.append(tf.placeholder("float", [num_feature, num_feature]))
+      n = 0
       for i in range(num_feature):
         for j in range(num_feature):
+          if n % 100 == 0:
+            print(n)
           # compute inner product of vectorized feature maps
-          # X = tf.gather_nd(features[:,:,i]))
-          # Y = tf.gather_nd(features[:,:,j])
-          # gram[l][i,j] = tf.reduce_sum(tf.multiply(X, Y))
-          gram[l][i,j] = tf.reduce_sum(tf.multiply(features[:,:,i], features[:,:,j]))
+          X = features[l][0,:,:,i]
+          Y = features[l][0,:,:,j]
+          gram[l][i,j].assign(tf.reduce_sum(tf.multiply(X, Y)))
+          n+=1
 
     return gram
 
@@ -156,7 +157,7 @@ class Transfer:
     G = self.get_gram_matrix(self.get_style_features_var(generated_image))
 
     # test gram matrix
-    G_run = self.sess.run(G, {self.image: generated_image})
+    G_run = self.sess.run(G[0], {self.image: generated_image})
     print(G_run)
 
     # A = self.sess.run(A, {self.image : self.style})
