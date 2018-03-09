@@ -56,7 +56,36 @@ class Transfer:
     self.target_gram_matrices = [] 
     for G in self.gram_matrix_functions:
       self.target_gram_matrices.append(self.sess.run(G, { self.image : self.style }))
-    
+
+    # Shared 'lambda' functions used inside of optimize to display images
+    # as they are being updated/generated.
+    def init_display(params, plt = plt, self = self):
+      plt.title(params['name'])
+      plt.ion()
+      params['im'] = plt.imshow(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
+    self.init_display = init_display 
+
+    def update_display(params, plt = plt, self = self):
+      params['im'].set_data(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
+      plt.pause(PAUSE_LEN)
+
+      print('-------')
+      print("Loss on iteration {}: {}".format(params['iter'], params['loss'][-1]))
+    self.update_display = update_display
+
+    def save(params, plt = plt, self = self):
+      out = self.vgg.toRGB(params['theta'])
+      out = np.clip(out, 0, 1)
+
+      filename = params["type"] + "_" + params['name'] 
+      skimage.io.imsave(os.path.join(params['out_dir'],filename + ".jpg"), out[0])
+      
+      plt.clf()
+      plt.plot(params['loss'])
+      plt.savefig(os.path.join(params['out_dir'],filename + "_loss.jpg"))
+
+      return out 
+    self.save = save
 
   #############################################################################
   # content representation
@@ -131,6 +160,43 @@ class Transfer:
   #############################################################################
   # execute
   #############################################################################
+  def transfer_style_to_image(self, out_dir = ".", alpha = 1, beta =1,
+                              params = {
+                                'type' : 'sgd',
+                                'step_size' : 1.0,
+                                'iters' : 100,
+                                'gamma' : 0.9
+                              }):
+    synthetic = copy.copy(self.synthetic)
+
+    def loss_gradient(image):
+      c_grad, c_loss = self.get_content_loss_gradient(image)
+      s_grad, s_loss = self.get_style_loss_gradient(image)
+      print("-------------------------")
+      print("Style Loss = " + str(s_loss))
+      print("Content Loss = " + str(c_loss))
+      print(str(c_loss / s_loss))
+      return (alpha*c_grad + beta*s_grad, alpha*c_loss + beta*s_loss)
+
+    def loss(image):
+      c_loss = self.get_content_loss(image)
+      s_loss = self.get_style_loss(image)
+      
+      return (alpha*c_loss + beta*s_loss)
+    
+    base_params = {
+      'name' : 'Image Style Transfer',
+      'theta' : synthetic,
+      'dJdTheta' : loss_gradient,
+      'J' : loss,
+      'init_display' : self.init_display,
+      'update_display' : self.update_display,
+      'save' : self.save,
+      'out_dir' : out_dir
+    }
+    base_params.update(params)
+     
+    return SGD(base_params).optimize()
 
   def transfer_only_content(self, out_dir = ".", params = {
                               'type' : "sgd",
@@ -139,49 +205,17 @@ class Transfer:
                               'gamma' : 0.9   # Used as part of momentum.
                             }):
     synthetic = copy.copy(self.synthetic)
-
-    def init_display(params, plt = plt, self = self):
-      plt.title("Content Transfer")
-      plt.ion()
-      params['im'] = plt.imshow(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
-    
-    def update_display(params, plt = plt, self = self):
-      params['im'].set_data(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
-      plt.pause(PAUSE_LEN)
-
-      print('-------')
-      print("Loss on iteration {}: {}".format(params['iter'], params['loss'][-1]))
-    
-    def save(params, plt = plt, self = self):
-      out = self.vgg.toRGB(params['theta'])
-      out = np.clip(out, 0, 1)
-
-      filename = params["type"] + "_" + params['name'] 
-      skimage.io.imsave(os.path.join(out_dir,filename + ".jpg"), out[0])
-      
-      plt.clf()
-      plt.plot(params['loss'])
-      plt.savefig(os.path.join(out_dir,filename + "_loss.jpg"))
-
-    extended_params = {
-      'type' : 'sgd' if not 'type' in params else params['type'],
-      'step_size' : 1 if not 'step_size' in params else params['step_size'],
-      'iters' : 10 if not 'iters' in params else params['iters'],
-      'gamma' : 0 if not 'gamma' in params else params['gamma'],
-      'gamma_normal': 1 if not 'gamma_normal' in params else params['gamma_normal'],
-      'add_noise' : false if not 'add_noise' in params else params['add_noise'],
-      'eps' : 1e-6 if not 'eps' in params else params['eps'],
-      'beta' : 0 if not 'beta' in params else params['beta'],
+    base_params = {
       'name' : 'Content Transfer',
       'theta' : synthetic,
       'dJdTheta' : self.get_content_loss_gradient,
       'J' : self.get_content_loss,
-      'init_display' : init_display,
-      'update_display' : update_display,
-      'save' : save
-      
+      'init_display' : self.init_display,
+      'update_display' : self.update_display,
+      'save' : self.save,
+      'out_dir' : out_dir
     }
-
+    base_params.update(params)
     return SGD(extended_params).optimize()
 
   def transfer_only_style(self, step_size = 10.0, iters = 100, out_dir = "."):

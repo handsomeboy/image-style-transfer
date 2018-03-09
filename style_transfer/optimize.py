@@ -2,6 +2,19 @@ import numpy as np
 import copy
 
 class SGD:
+  default_params = {
+      'type' : 'sgd',
+      'step_size' : 1,
+      'iters' : 10,
+      'gamma' : 0,
+      'name' : 'SGD',
+      'init_display' : lambda *args: None,
+      'update_display' : lambda *args: None,
+      'save' : lambda *args: None
+    }
+
+  required_params = ['theta', 'dJdTheta', 'J']
+
   def __init__(self, params):
     '''
       params:
@@ -18,7 +31,14 @@ class SGD:
         update_display :  a function that given params displays the optimization problem in some way.
         save : a function that is passed params and saves the results somehow.
     '''
-    self.params = params
+      
+    for param in SGD.required_params:
+      if param not in params:
+        raise Exception("Missing required parameter" + str(param))
+    
+    self.params = {}
+    self.params.update(SGD.default_params)
+    self.params.update(params)
 
   def optimize(self):
     params = copy.copy(self.params) 
@@ -45,35 +65,15 @@ class SGD:
         update = params['gamma'] * update + params['step_size'] * grad
 
       elif params['type'] == 'adagrad':
-        grad, loss = params['dJdTheta'](params['theta'] - params['beta'] * update) 
+        grad, loss = params['dJdTheta'](params['theta'] - params['gamma'] * update) 
         grad_hist += np.square(grad)
         update = params['step_size'] * np.divide(grad, 1e-6 + np.sqrt(grad_hist))
 
-      elif params['type'] == 'adadelta':
-        # http://climin.readthedocs.io/en/latest/adadelta.html
-        grad, loss = params['dJdTheta'](params['theta'] - params['beta'] * update)
-  
-        # Accumulate gradient.
-        grad_hist = np.add(np.multiply(params['gamma'], grad_hist), 
-                           np.multiply((1.0 - params['gamma']), np.square(grad)))
-        
-        # delta_theta = sqrt(step_hist / grad_hist) * grad
-        delta_theta = params['step_size'] * np.multiply(np.divide(np.sqrt(step_hist + params['eps']),
-                                                                  np.sqrt(grad_hist + params['eps'])),
-                                                        grad)
-
-        # Accumulate steps
-        step_hist = np.add(np.multiply(params['gamma'], step_hist), 
-                           np.multiply((1.0 - params['gamma']), np.square(delta_theta)))
-        
-        update = delta_theta
-
-      sigma_noise = np.sqrt(params['step_size'] / (1 + i) ** params['gamma_normal'])
-      noise = np.zeros(update.shape) if params['add_noise'] else np.random.uniform(0,sigma_noise,update.shape)
-      params['theta'] -= update + noise
+      params['theta'] -= update
       params['loss'].append(loss)
       params['iter'] = i
       
       params['update_display'](params)
 
-    params['save'](params)
+    return params['save'](params)
+
