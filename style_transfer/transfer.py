@@ -42,16 +42,21 @@ class Transfer:
     style = utils.load_image2(style, self.width, self.height)
     content = utils.load_image2(content, self.width, self.height)
 
-    # Get feature repesentation of content and style
+    #Convert content and style to BGR.
     new_image_shape = (1, self.width, self.height, 3)
     self.style = self.vgg.toBGR(style.reshape(new_image_shape))
     self.content = self.vgg.toBGR(content.reshape(new_image_shape))
     self.synthetic = self.vgg.toBGR(self.synthetic.reshape(new_image_shape))
 
     # Get the feature maps for the style and content we want
-    self.target_style = self.get_style_features(self.style)
     self.target_content = self.get_content_features(self.content)
-
+   
+    # Create symbolic gram matrices and target gram matrices for style image.
+    self.gram_matrix_functions = self.get_gram_matrices()
+    self.target_gram_matrices = [] 
+    for G in self.gram_matrix_functions:
+      self.target_gram_matrices.append(self.sess.run(G, { self.image : self.style }))
+    
 
   #############################################################################
   # content representation
@@ -87,70 +92,41 @@ class Transfer:
   # style representation
   #############################################################################
 
-  def get_style_features(self, image):
+  def get_style_features(self):
     style = []
-
-    feed = {self.image : image}
-
     for layer in self.style_layers:
       style.append(self.vgg[layer])
-    
     return style
 
 
-  def get_gram_matrix(self, features):
-    gram = []
+  def get_gram_matrices(self):
+    features = self.get_style_features()
+    gram_matrices = []
     for l in range(len(self.style_layers)):
       num_feature = self.sess.run(tf.shape(features[l])[3])
-      M_l = self.sess.run(tf.shape(features[l])[1])
-      A = tf.reshape(features[l], [M_l ** 2, num_feature])
-      gram.append(tf.matmul(A, A, transpose_a = True))
 
-    return gram
+      # Using "-1" flattens the tensor. So -1 = "M_L**2" in this case.
+      A = tf.reshape(features[l], [-1, num_feature])
+      gram_matrices.append(tf.matmul(A, A, transpose_a = True))
+    return gram_matrices
 
 
-  def get_style_loss(self, image, loss):
-    # style representation
-    # loss_style = sum(weighting_l * E_l)
+  def get_style_loss(self, image):
+    loss_style = get_style_loss_function(image)
     return self.sess.run(loss, {self.image : image})
 
-
   def get_style_loss_function(self, generated_image):
-    A = self.get_gram_matrix(self.get_style_features(self.style))
-    G = self.get_gram_matrix(self.get_style_features(generated_image))
-
-    # test gram matrix
-    G_run = self.sess.run(G[0], {self.image: generated_image})
-
-    for l in range(len(A)):
-      A[l] = self.sess.run(A[l], {self.image : self.style})
-
-    print('--------')
-    print('get_style_loss_function')
     E = []
-    for l in range(len(self.style_layers)):
-      N_l = A[l].shape[0]                   # number of features
-      M_l = A[l].shape[0] * A[l].shape[1]   # feature map size (number of features: h x w)
-      G_minus_A = G[l] - A[l]
-      G_minus_A_2 = 1 / (4 * N_l^2 * M_l^2) * tf.square(G_minus_A)
-      E.append(tf.reduce_sum(G_minus_A_2))
-      E_run = self.sess.run(E[-1], {self.image : generated_image})
-
-    # get weighted sum, which is average
+    for l in range(len(self.target_gram_matrices)):
+      E.append(tf.reduce_mean(tf.square(self.gram_matrix_functions[l] - self.target_gram_matrices[l])))
     return tf.reduce_mean(E)
-
 
   def get_style_loss_gradient(self, generated_image):
     loss = self.get_style_loss_function(generated_image)
-    print('-----')
-    print('get_style_loss_gradient')
     gr = tf.gradients(loss, self.image)
     style_gradient = self.sess.run(gr, {self.image : generated_image})[0]
-    style_loss = loss
-
+    style_loss = self.sess.run(loss, { self.image : generated_image})
     return (style_gradient, style_loss)
-
-
 
   #############################################################################
   # execute
@@ -194,30 +170,28 @@ class Transfer:
     loss = []
     for i in range(iters):
       (syn_gradient, style_loss) = self.get_style_loss_gradient(synthetic)
-      print('syn_gradient is {}'.format(syn_gradient.shape))
       synthetic -= step_size * syn_gradient
-      loss.append(self.get_style_loss(synthetic, style_loss))
+      loss.append(style_loss)
       im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
       plt.pause(PAUSE_LEN)
       print("Loss on iteration {}: {}".format(i, loss[-1]))
 
-    # out = self.vgg.toRGB(synthetic)
-    # out = np.clip(out, 0, 1)
-    # skimage.io.imsave(os.path.join(out_dir, "style_only_transfer.jpg"), out[0])
+    out = self.vgg.toRGB(synthetic)
+    out = np.clip(out, 0, 1)
+    skimage.io.imsave(os.path.join(out_dir, "style_only_transfer.jpg"), out[0])
 
-    # plt.plot(loss)
-    # plt.savefig(os.path.join(out_dir, "style_loss.jpg"))
+    plt.plot(loss)
+    plt.savefig(os.path.join(out_dir, "style_loss.jpg"))
 
-    # return out
+    return out
 
 
   #############################################################################
-  # unused?
+  # Utility
   #############################################################################
 
   def set_initial_img(self, image):
     self.synthetic = self.vgg.toBGR(image)
-
 
   def open_image(self, image_path):
     image = utils.load_image2(image_path, self.width, self.height)
