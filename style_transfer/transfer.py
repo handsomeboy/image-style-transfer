@@ -9,13 +9,14 @@ import pdb
 from ext.tf_vgg import vgg19, utils
 
 
-# length to pause when displaying plots
-PAUSE_LEN = 0.01
+PAUSE_LEN = 0.01    # length to pause when displaying plots
+NUM_CHANNELS = 3    # number of color channels
 
 class Transfer:
 
   def __init__(self, style, content, width = 240, height = 240, initial = None, 
-               content_layers = ["conv4_2"], style_layers = ["conv1_1","conv2_1","conv3_1","conv4_1","conv5_1"]):
+               content_layers = ["conv4_2"], 
+               style_layers = ["conv1_1","conv2_1","conv3_1","conv4_1","conv5_1"]):
     self.content_layers = content_layers
     self.style_layers = style_layers
 
@@ -26,14 +27,14 @@ class Transfer:
     self.sess = tf.Session()
 
     # Create the "VGG19" convolutional neural net
-    self.image = tf.placeholder("float", [1, self.width, self.height, 3])
+    self.image = tf.placeholder("float", [1, self.width, self.height, NUM_CHANNELS])
     self.vgg = vgg19.Vgg19()
     self.vgg.build(self.image)
 
     if not initial:
       rand_noise = np.random.rand(self.width, self.height)
       rand_noise = rand_noise.reshape(1, self.width, self.height,1)
-      white_noise = np.concatenate((rand_noise, rand_noise, rand_noise), axis=3)
+      white_noise = np.concatenate((rand_noise, rand_noise, rand_noise), axis=NUM_CHANNELS)
       self.synthetic = white_noise
     else:
       self.synthetic = initial
@@ -43,7 +44,7 @@ class Transfer:
     content = utils.load_image2(content, self.width, self.height)
 
     #Convert content and style to BGR.
-    new_image_shape = (1, self.width, self.height, 3)
+    new_image_shape = (1, self.width, self.height, NUM_CHANNELS)
     self.style = self.vgg.toBGR(style.reshape(new_image_shape))
     self.content = self.vgg.toBGR(content.reshape(new_image_shape))
     self.synthetic = self.vgg.toBGR(self.synthetic.reshape(new_image_shape))
@@ -51,11 +52,11 @@ class Transfer:
     # Get the feature maps for the style and content we want
     self.target_content = self.get_content_features(self.content)
    
-    # Create symbolic gram matrices and target gram matrices for style image.
+    # Create symbolic gram matrices and target gram matrices for style image
     self.gram_matrix_functions = self.get_gram_matrices()
     self.target_gram_matrices = [] 
     for G in self.gram_matrix_functions:
-      self.target_gram_matrices.append(self.sess.run(G, { self.image : self.style }))
+      self.target_gram_matrices.append(self.sess.run(G, {self.image : self.style}))
     
 
   #############################################################################
@@ -70,7 +71,7 @@ class Transfer:
 
   def get_content_loss(self, image):
     loss = self.get_content_loss_function()
-    return self.sess.run(loss, {self.image : image })
+    return self.sess.run(loss, {self.image : image})
 
   def get_content_loss_function(self):
     content_layer_loss = []
@@ -84,7 +85,7 @@ class Transfer:
     loss = self.get_content_loss_function()
     gr = tf.gradients(loss, self.image)
     content_gradient = self.sess.run(gr, {self.image : image})[0]
-    content_loss = self.sess.run(loss, { self.image : image})
+    content_loss = self.sess.run(loss, {self.image : image})
     return (content_gradient, content_loss)
 
 
@@ -125,7 +126,7 @@ class Transfer:
     loss = self.get_style_loss_function(generated_image)
     gr = tf.gradients(loss, self.image)
     style_gradient = self.sess.run(gr, {self.image : generated_image})[0]
-    style_loss = self.sess.run(loss, { self.image : generated_image})
+    style_loss = self.sess.run(loss, {self.image : generated_image})
     return (style_gradient, style_loss)
 
   #############################################################################
@@ -195,4 +196,4 @@ class Transfer:
 
   def open_image(self, image_path):
     image = utils.load_image2(image_path, self.width, self.height)
-    return image.reshape((1, self.width, self.height, 3,))
+    return image.reshape((1, self.width, self.height, NUM_CHANNELS))
