@@ -17,7 +17,8 @@ class Transfer:
   def __init__(self, style, content, width = 240, height = 240, initial = None, 
                content_layers = ["conv4_2"], 
                style_layers = ["conv1_1","conv2_1",
-                               "conv3_1","conv4_1","conv5_1"]):
+                               "conv3_1","conv4_1",
+                               "conv5_1"]):
     self.content_layers = content_layers
     self.style_layers = style_layers
 
