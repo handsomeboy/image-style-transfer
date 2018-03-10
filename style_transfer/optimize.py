@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-from scipy.optimize import fmin_bfgs, fmin_l_bfgs_b
+from scipy.optimize import fmin_l_bfgs_b
 
 class SGD:
   default_params = {
@@ -48,7 +48,6 @@ class SGD:
     update = 0
 
     grad_hist = 0
-    step_hist = 0
 
     gradient, loss = (0,0)
     params['init_display'](params)
@@ -61,7 +60,7 @@ class SGD:
       # stochastic gradient descent with momentum
       elif params['type'] == 'momentum':
         grad, loss = params['dJdTheta'](params['theta'])
-        update = params['gamma'] * last_update + params['step_size'] * grad
+        update = params['gamma'] * update + params['step_size'] * grad
 
       # Nesterov's accelerated gradient descent
       elif params['type'] == 'nesterov':
@@ -84,64 +83,18 @@ class SGD:
     return params['save'](params)
 
 
-  def lgbfs(self):
-    print('-------------')
-    print('in lgbfs')
+  # limited-memory BFGS
+  def optimize_lbfgs(self):
     params = copy.copy(self.params)
+    params['loss'] = []
 
     func = params['J']
     x0 = params['theta']
     fprime = params['dJdTheta']
+    factr = 1e15    # small factor = high accuracy
 
-    print('func    {}'.format(func))
-    print('x0      {}'.format(x0))
-    print('x0      {}'.format(x0.shape))
-    print('x0 type {}'.format(type(x0)))
-    print('x0 type {}'.format(x0.dtype))    # should be float64
-    print('fprime  {}'.format(fprime))
-    x, f, d = fmin_l_bfgs_b(func, x0, fprime=fprime)
+    x, f, d = fmin_l_bfgs_b(func, x0, fprime=fprime, factr=factr)
+    params['loss'].append(d)
+    params['theta'] = x
 
-    return x
-
-  # implementation of limited-memory BFGS
-  # def lgbfs(self):
-  #   print('-------------')
-  #   print('in lgbfs')
-  #   params = copy.copy(self.params)
-
-  #   x = params['theta']               # initial guess
-  #   B = params['dJdThetaHess'](x)     # an approximate hessian matrix
-
-  #   grad_x = params['dJdTheta'](x)
-
-  #   print('about to start iters')
-  #   # TODO: check for convergence rather than running an arbitrary number of layers
-  #   for i in range(1, params['iters']):
-  #     # obtain a direction p by solving Bp = -grad(f(x))
-  #     direction = -np.linalg.inv(B) * grad_x
-
-  #     # perform a one-dimensional optimization to find an acceptable
-  #     # stepsize in the direction found in the first step
-  #     best_step = -1
-  #     min_loss = float('inf')
-  #     for step in np.arange(0.0, 10.0, .1):
-  #       loss = loss(x + step * direction)
-  #       if loss < min_loss:
-  #         best_step = step
-
-  #     # step s = step*p and update x = x + s
-  #     delta = best_step * direction
-  #     x += delta
-
-  #     new_grad_x = params['dJdTheta'](x)
-  #     y = new_grad_x - grad_x
-
-  #     grad_x = new_grad_x
-
-  #     B += (np.dot(y, np.transpose(y)) / np.dot(np.transpose(y), delta)) - \
-  #          ((B @ delta @ np.transpose(delta) @ B) / (np.transpose(delta) @ B @ delta))
-
-  #   return x
-
-
-
+    return params['save'](params)
