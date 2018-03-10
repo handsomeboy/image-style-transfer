@@ -34,15 +34,7 @@ class Transfer:
     self.vgg = vgg19.Vgg19()
     self.vgg.build(self.image)
 
-    if not initial:
-      rand_noise = np.random.rand(self.width, self.height)
-      rand_noise = rand_noise.reshape(1, self.width, self.height, 1)
-      white_noise = np.concatenate((rand_noise, rand_noise, rand_noise), axis=NUM_CHANNELS)
-      self.synthetic = white_noise
-    else:
-      self.synthetic = initial
-
-    # Read in style and content images and then resize
+          # Read in style and content images and then resize
     style = utils.load_image2(style, self.width, self.height)
     content = utils.load_image2(content, self.width, self.height)
 
@@ -50,7 +42,6 @@ class Transfer:
     new_image_shape = (1, self.width, self.height, NUM_CHANNELS)
     self.style = self.vgg.toBGR(style.reshape(new_image_shape))
     self.content = self.vgg.toBGR(content.reshape(new_image_shape))
-    self.synthetic = self.vgg.toBGR(self.synthetic.reshape(new_image_shape))
 
     # Get the feature maps for the style and content we want
     self.target_content = self.get_content_features(self.content)
@@ -60,39 +51,9 @@ class Transfer:
     self.target_gram_matrices = [] 
     for G in self.gram_matrix_functions:
       self.target_gram_matrices.append(self.sess.run(G, {self.image : self.style}))
-
-    # Shared 'lambda' functions used inside of optimize to display images
-    # as they are being updated/generated
-    def init_display(params, plt = plt, self = self):
-      plt.title(params['name'])
-      plt.ion()
-      params['im'] = plt.imshow(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
-    self.init_display = init_display 
-
-    def update_display(params, plt = plt, self = self):
-      params['im'].set_data(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
-      plt.pause(PAUSE_LEN)
-      print('-------')
-      print('Loss on iteration {}: {}'.format(params['iter'], params['loss'][-1]))
-    self.update_display = update_display
-
-    def save(params, plt = plt, self = self):
-      out = self.vgg.toRGB(params['theta'])
-      out = np.clip(out, 0, 1)
-
-      filename = params['type'] + '_' + params['name'] 
-      skimage.io.imsave(os.path.join(params['out_dir'],filename + '.jpg'), out[0])
-      
-      plt.clf()
-      plt.plot(params['loss'])
-      plt.savefig(os.path.join(params['out_dir'],filename + '_loss.jpg'))
-
-      return out 
-    self.save = save
-
     self.synthetic = None
 
-
+  
 
   #############################################################################
   # content representation
@@ -194,14 +155,13 @@ class Transfer:
                                 'gamma' : 0.9
                               }):
     synthetic = copy.copy(self.synthetic)
-
     def loss_gradient(image):
       c_grad, c_loss = self.get_content_loss_gradient(image)
       s_grad, s_loss = self.get_style_loss_gradient(image)
       print('-------------------------')
-      print('Style Loss = {}'.format(s_loss))
-      print('Content Loss = {}'.format(c_loss))
-      print('Content / Style loss {}'.format(c_loss / s_loss))
+      print('Style Loss = {}'.format(beta*s_loss))
+      print('Content Loss = {}'.format(alpha*c_loss))
+      print('Content / Style loss {}'.format((alpha*c_loss) / (beta*s_loss)))
       return (alpha*c_grad + beta*s_grad, alpha*c_loss + beta*s_loss)
 
     def loss(image):
@@ -215,9 +175,9 @@ class Transfer:
       'theta' : synthetic,
       'dJdTheta' : loss_gradient,
       'J' : loss,
-      'init_display' : self.init_display,
-      'update_display' : self.update_display,
-      'save' : self.save,
+      'init_display' : self._init_display,
+      'update_display' : self._update_display,
+      'save' : self._save,
       'out_dir' : out_dir
     }
     base_params.update(params)
@@ -259,9 +219,9 @@ class Transfer:
       'theta' : theta,
       'dJdTheta' : loss_gradient,
       'J' : loss,
-      'init_display' : self.init_display,
-      'update_display' : self.update_display,
-      'save' : self.save,
+      'init_display' : self._init_display,
+      'update_display' : self._update_display,
+      'save' : self._save,
       'out_dir' : out_dir
     }
     base_params.update(params)
@@ -282,42 +242,35 @@ class Transfer:
       'theta' : synthetic,
       'dJdTheta' : self.get_content_loss_gradient,
       'J' : self.get_content_loss,
-      'init_display' : self.init_display,
-      'update_display' : self.update_display,
-      'save' : self.save,
+      'init_display' : self._init_display,
+      'update_display' : self._update_display,
+      'save' : self._save,
       'out_dir' : out_dir
     }
     base_params.update(params)
 
     return SGD(base_params).optimize()
 
+  def transfer_only_style(self, out_dir = '.', params = {
+                            'type' : 'sgd',
+                            'step_size' : 1.0,
+                            'iters' : 100,
+                            'gamma' : 0.9   # Used as part of momentum.
+                          }):
+    synthetic = copy.copy(self.synthetic)
+    base_params = {
+      'name' : 'Style Transfer',
+      'theta' : synthetic,
+      'dJdTheta' : self.get_style_loss_gradient,
+      'J' : self.get_style_loss,
+      'init_display' : self._init_display,
+      'update_display' : self._update_display,
+      'save' : self._save,
+      'out_dir' : out_dir
+    }
+    base_params.update(params)
 
-  def transfer_only_style(self, step_size = 10.0, iters = 100, out_dir = '.'):
-    synthetic = copy.copy(self.synthetic)   # get white noise image
-
-    plt.title('Style Transfer')
-    plt.ion()                               # interactive mode on
-    im = plt.imshow(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
-
-    loss = []
-    for i in range(iters):
-      (syn_gradient, style_loss) = self.get_style_loss_gradient(synthetic)
-      synthetic -= step_size * syn_gradient
-      loss.append(style_loss)
-      im.set_data(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
-      plt.pause(PAUSE_LEN)
-      print('Loss on iteration {}: {}'.format(i, loss[-1]))
-
-    out = self.vgg.toRGB(synthetic)
-    out = np.clip(out, 0, 1)
-    skimage.io.imsave(os.path.join(out_dir, 'style_only_transfer.jpg'), out[0])
-
-    plt.plot(loss)
-    plt.savefig(os.path.join(out_dir, 'style_loss.jpg'))
-
-    return out
-
-
+    return SGD(base_params).optimize()
 
   #############################################################################
   # utility
@@ -328,6 +281,44 @@ class Transfer:
     image = image.reshape((1, self.width, self.height, NUM_CHANNELS))
     self.synthetic = self.vgg.toBGR(image)
 
+  def set_random_initial_img(self):
+      rand_noise = np.random.rand(self.width, self.height)
+      rand_noise = rand_noise.reshape(1, self.width, self.height, 1)
+      white_noise = np.concatenate((rand_noise, rand_noise, rand_noise), 
+                                   axis=NUM_CHANNELS)
+      self.synthetic = self.vgg.toBGR(white_noise)
+
+
   def open_image(self, image_path):
     image = utils.load_image2(image_path, self.width, self.height)
     return image.reshape((1, self.width, self.height, NUM_CHANNELS))
+
+  # Shared 'lambda' functions used inside of optimize to display images
+  # as they are being updated/generated
+  def _init_display(self, params):
+    plt.title(params['name'])
+    plt.ion()
+    params['im'] = plt.imshow(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
+    
+  def _update_display(self, params):
+    params['im'].set_data(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
+    plt.pause(PAUSE_LEN)
+    print('-------')
+    print('Loss on iteration {}: {}'.format(params['iter'], params['loss'][-1]))
+
+  def _save(self, params):
+    out = self.vgg.toRGB(params['theta'])
+    out = np.clip(out, 0, 1)
+
+    filename = params['type'] + '_' + params['name'] 
+    skimage.io.imsave(os.path.join(params['out_dir'],filename + '.jpg'), out[0])
+    
+    plt.clf()
+    f, ax = plt.subplots(1)
+    ax.set_ylim(bottom=0, top = max(params['loss']))
+
+    plt.plot(params['loss'])
+    plt.savefig(os.path.join(params['out_dir'],filename + '_loss.jpg'))
+
+    return out 
+
