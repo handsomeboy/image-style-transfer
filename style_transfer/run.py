@@ -11,8 +11,26 @@ DATA_OUTPUT = 'data/output/'
 
 # style_path = os.path.join(DATA_INPUT, 'style/vangogh.jpg')
 # style_path = os.path.join(DATA_INPUT, 'style/rocks.jpg')
-style_path = os.path.join(DATA_INPUT, 'style/checkerboard.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/checkerboard.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/close_s.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/matisse.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/seurat.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/kandinsky.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/vermeer.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/davinci.jpg')
+style_path = os.path.join(DATA_INPUT, 'style/colorfulpoly.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/klimt.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/picasso.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/monet.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/dali.jpg')
+
+content_path = os.path.join(DATA_INPUT, 'style/colorfulpoly.jpg')
+
 content_path = os.path.join(DATA_INPUT, 'content/baker.jpg')
+# content_path = os.path.join(DATA_INPUT, 'content/jarosz.jpg')
+# content_path = os.path.join(DATA_INPUT, 'content/lily.jpg')
+# content_path = os.path.join(DATA_INPUT, 'content/trondheim.jpg')
+# content_path = os.path.join(DATA_INPUT, 'content/bailey.jpg')
 
 synthetic_name = os.path.splitext(style_path)[0].split('/')[-1]
 synthetic_name += '_on_'
@@ -22,7 +40,7 @@ transfer = Transfer(style_path, content_path, WIDTH, HEIGHT,
                     initial = None,
                     content_layers = ['conv4_2'])
 
-transfer.set_initial_img(content_path)
+# transfer.set_initial_img(content_path)
 
 start = time.time()
 
@@ -41,7 +59,7 @@ skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
 #                              })
 
 # test style transfer
-# transfer.transfer_only_style(step_size = 1.0e-9, iters = 2, out_dir = DATA_OUTPUT)
+transfer.transfer_only_style(step_size = 1.0e-9, iters = 100, out_dir = DATA_OUTPUT)
 
 
 # NOTE: paper suggests alpha/beta = 1e-3
@@ -58,11 +76,11 @@ skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
 #                                  })
 
 # test transfer using L-BFGS optimization
-transfer.transfer_style_to_image_lbfgs(out_dir = DATA_OUTPUT,
-                                 alpha = 1,       # content weighting
-                                 beta = 1e3,      # style weighting
-                                 params = { 'type' : 'lbfgs',
-                                            'factr' : 1e13})
+# transfer.transfer_style_to_image_lbfgs(out_dir = DATA_OUTPUT,
+#                                  alpha = 0,       # content weighting
+#                                  beta = 1,      # style weighting
+#                                  params = { 'type' : 'lbfgs',
+#                                             'factr' : 1e15})
 
 end = time.time()
 print('Total runtime: {} seconds'.format(end - start))

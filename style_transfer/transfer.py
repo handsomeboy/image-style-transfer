@@ -95,7 +95,7 @@ class Transfer:
       return out 
     self.save = save
 
-    self.synthetic = None
+    # self.synthetic = self.image
 
 
 

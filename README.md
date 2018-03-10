@@ -5,6 +5,8 @@ Final project for CS 89 at Dartmouth, Computational Aspects of Digital Photograp
 
 For our project, we take a stylized painting or patterned image and map its style to an unrelated photograph using a convolutional neural network (CNN).
 
+We were given permission by Professor Jarosz to use Python rather than C for our project. 
+
 
 ## Dependencies
 
@@ -12,7 +14,7 @@ For our project, we take a stylized painting or patterned image and map its styl
 - tensorflow
 - matplotlib
 - scipy.optimize (for L-BFGS)
-- [libLBFGS](https://github.com/chokkan/liblbfgs) (for L-BFGS)
+- [libLBFGS](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.fmin_l_bfgs_b.html)
 
 
 ## Usage
