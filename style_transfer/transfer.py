@@ -34,7 +34,7 @@ class Transfer:
     self.vgg = vgg19.Vgg19()
     self.vgg.build(self.image)
 
-          # Read in style and content images and then resize
+    # Read in style and content images and then resize
     style = utils.load_image2(style, self.width, self.height)
     content = utils.load_image2(content, self.width, self.height)
 
@@ -51,6 +51,9 @@ class Transfer:
     self.target_gram_matrices = [] 
     for G in self.gram_matrix_functions:
       self.target_gram_matrices.append(self.sess.run(G, {self.image : self.style}))
+
+    self.update_display = update_display
+
     self.synthetic = None
 
   
@@ -60,8 +63,8 @@ class Transfer:
   #############################################################################
 
   def get_content_features(self, image):
-    if image.shape != (1, 244, 244, 3):
-      image = tf.reshape(image, (1, 244, 244, 3))
+    if image.shape != (1, self.width, self.width, NUM_CHANNELS):
+      image = tf.reshape(image, (1, self.width, self.width, NUM_CHANNELS))
       image = self.sess.run(image, {self.image : self.synthetic})
     content = {}
     for layer in self.content_layers:
@@ -69,8 +72,8 @@ class Transfer:
     return content 
 
   def get_content_loss(self, image):
-    if image.shape != (1, 244, 244, 3):
-      image = tf.reshape(image, (1, 244, 244, 3))
+    if image.shape != (1, self.width, self.width, NUM_CHANNELS):
+      image = tf.reshape(image, (1, self.width, self.width, NUM_CHANNELS))
       image = self.sess.run(image, {self.image : self.synthetic})
     loss = self.get_content_loss_function()
     return self.sess.run(loss, {self.image : image})
@@ -84,8 +87,8 @@ class Transfer:
     return tf.reduce_mean(content_layer_loss)
 
   def get_content_loss_gradient(self, image):
-    if image.shape != (1, 244, 244, 3):
-      image = tf.reshape(image, (1, 244, 244, 3))
+    if image.shape != (1, self.width, self.width, NUM_CHANNELS):
+      image = tf.reshape(image, (1, self.width, self.width, NUM_CHANNELS))
       image = self.sess.run(image, {self.image : self.synthetic})
     loss = self.get_content_loss_function()
     gr = tf.gradients(loss, self.image)
@@ -117,9 +120,9 @@ class Transfer:
     return gram_matrices
 
 
-  def get_style_loss(self, image, use=None):
-    if image.shape != (1, 244, 244, 3):
-      image = tf.reshape(image, (1, 244, 244, 3))
+  def get_style_loss(self, image):
+    if image.shape != (1, self.width, self.height, NUM_CHANNELS):
+      image = tf.reshape(image, (1, self.width, self.height, NUM_CHANNELS))
       image = self.sess.run(image, {self.image : self.synthetic})
     loss_style = self.get_style_loss_function()
     return self.sess.run(loss_style, {self.image : image})
@@ -131,9 +134,9 @@ class Transfer:
     return tf.reduce_mean(E)
 
 
-  def get_style_loss_gradient(self, image, use=None):
-    if image.shape != (1, 244, 244, 3):
-      image = tf.reshape(image, (1, 244, 244, 3))
+  def get_style_loss_gradient(self, image):
+    if image.shape != (1, self.width, self.height, NUM_CHANNELS):
+      image = tf.reshape(image, (1, self.width, self.height, NUM_CHANNELS))
       image = self.sess.run(image, {self.image : self.synthetic})
     loss = self.get_style_loss_function()
     gr = tf.gradients(loss, self.image)
@@ -168,7 +171,7 @@ class Transfer:
       c_loss = self.get_content_loss(image)
       s_loss = self.get_style_loss(image)
       
-      return (alpha*c_loss + beta*s_loss)
+      return alpha*c_loss + beta*s_loss
     
     base_params = {
       'name' : 'Image Style Transfer',
@@ -185,6 +188,8 @@ class Transfer:
     return SGD(base_params).optimize()
 
 
+  # note that with the SciPy L-BFGS implementation, the image must be
+  # recorded as a vector
   def transfer_style_to_image_lbfgs(self, out_dir = '.', alpha = 1, beta = 1,
                               params = {
                                 'type' : 'sgd',
@@ -194,22 +199,41 @@ class Transfer:
                               }):
     synthetic = copy.copy(self.synthetic)
 
+    params['loss'] = []
+
     def loss_gradient(image):
-      print('-------------------------')
-      print('loss_gradient()')
       c_grad, c_loss = self.get_content_loss_gradient(image)
       s_grad, s_loss = self.get_style_loss_gradient(image)
-      print('Style Loss = {}'.format(s_loss))
-      print('Content Loss = {}'.format(c_loss))
+      print('Style loss = {}'.format(s_loss))
+      print('Content loss = {}'.format(c_loss))
       print('Content / Style loss {}'.format(c_loss / s_loss))
-      return (alpha*c_grad + beta*s_grad, alpha*c_loss + beta*s_loss)
+      out = alpha * c_grad + beta * s_grad
+      out = out.flatten()
+      return np.float64(out)     # convert to float64
 
     def loss(image):
+      # update display
+      result = tf.reshape(image, (1, self.width, self.height, NUM_CHANNELS))
+      result = self.sess.run(result, {self.image : self.synthetic})
+      result = self.vgg.toRGB(result)[0]
+      result = np.clip(result, 0, 1)
+      im.set_data(result)
+      skimage.io.imsave(os.path.join(out_dir, 'lbfgs_style_transfer.jpg'), result[0])
+      plt.pause(PAUSE_LEN)
+
+      # get loss and compute loss function
       c_loss = self.get_content_loss(image)
       s_loss = self.get_style_loss(image)
-      
-      return (alpha*c_loss + beta*s_loss)
-    
+
+      loss = alpha*c_loss + beta*s_loss
+      params['loss'].append(loss)
+      return loss
+
+    plt.ion()
+    plt.title('L-BFGS Image Style Transfer')
+    im = plt.imshow(np.clip(self.vgg.toRGB(synthetic)[0], 0, 1))
+    plt.pause(PAUSE_LEN)
+
     self.synthetic = synthetic
     theta = tf.reshape(synthetic, [-1])      # flatten vector
     theta = tf.cast(theta, tf.float64)       # convert to tf.float64. necessary for scipy.optimize
@@ -225,16 +249,15 @@ class Transfer:
       'out_dir' : out_dir
     }
     base_params.update(params)
-    
-    return SGD(base_params).lgbfs()
-  
 
+    return SGD(base_params).optimize_lbfgs()
+  
 
   def transfer_only_content(self, out_dir = '.', params = {
                               'type' : 'sgd',
                               'step_size' : 1.0,
                               'iters' : 100,
-                              'gamma' : 0.9   # Used as part of momentum.
+                              'gamma' : 0.9   # Used as part of momentum
                             }):
     synthetic = copy.copy(self.synthetic)
     base_params = {
@@ -269,7 +292,6 @@ class Transfer:
       'out_dir' : out_dir
     }
     base_params.update(params)
-
     return SGD(base_params).optimize()
 
   #############################################################################
@@ -307,7 +329,12 @@ class Transfer:
     print('Loss on iteration {}: {}'.format(params['iter'], params['loss'][-1]))
 
   def _save(self, params):
-    out = self.vgg.toRGB(params['theta'])
+    image = params['theta']
+    if image.shape != (1, self.width, self.width, NUM_CHANNELS):
+        image = tf.reshape(image, (1, self.width, self.width, NUM_CHANNELS))
+        image = self.sess.run(image, {self.image : self.synthetic})
+
+    out = self.vgg.toRGB(image)
     out = np.clip(out, 0, 1)
 
     filename = params['type'] + '_' + params['name'] 

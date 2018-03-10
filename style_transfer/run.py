@@ -1,10 +1,8 @@
 from argparse import *
 import os
-import numpy as np
-import skimage
-import skimage.io
 from transfer import Transfer
 import time
+import skimage
 
 WIDTH = 244
 HEIGHT = 244
