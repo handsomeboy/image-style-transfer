@@ -4,8 +4,8 @@ import skimage
 import skimage.io
 from transfer import Transfer
 
-WIDTH = 244
-HEIGHT = 244
+WIDTH = 256
+HEIGHT = 256
 
 DATA_INPUT = "data/input/"
 DATA_OUTPUT = "data/output/"
@@ -22,6 +22,12 @@ transfer = Transfer(style_path, content_path, WIDTH, HEIGHT,
                     initial = None,
                     content_layers = ["conv4_2"])
 
+#style = transfer.open_image(style_path)
+content = transfer.open_image(content_path)
+
+#skimage.io.imsave(os.path.join(DATA_OUTPUT, "style.jpg"), style[0])
+#skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
+
 # test content transfer
 #transfer.transfer_only_content(out_dir = DATA_OUTPUT, params = {
 #                                'type' : 'nesterov',
@@ -35,12 +41,13 @@ transfer = Transfer(style_path, content_path, WIDTH, HEIGHT,
 
 
 # test entire transfer
+transfer.set_initial_img(content)
 transfer.transfer_style_to_image(out_dir = DATA_OUTPUT, 
                                  alpha = 1,
-                                 beta = 1e-12,
+                                 beta = 1e2,
                                  params = {
                                    'type' : 'adagrad',
-                                   'step_size' : 10,
-                                   'iters' : 100,
-                                   'gamma' : 2
+                                   'step_size' : 1e-1,
+                                   'iters' : 25,
+                                   'gamma' : 0
                                  })

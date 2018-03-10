@@ -15,7 +15,9 @@ PAUSE_LEN = 0.01
 class Transfer:
 
   def __init__(self, style, content, width = 240, height = 240, initial = None, 
-               content_layers = ["conv4_2"], style_layers = ["conv1_1","conv2_1","conv3_1","conv4_1","conv5_1"]):
+               content_layers = ["conv4_2"], 
+               style_layers = ["conv1_1","conv2_1",
+                               "conv3_1","conv4_1","conv5_1"]):
     self.content_layers = content_layers
     self.style_layers = style_layers
 
@@ -141,8 +143,8 @@ class Transfer:
 
 
   def get_style_loss(self, image):
-    loss_style = get_style_loss_function(image)
-    return self.sess.run(loss, {self.image : image})
+    loss_style = self.get_style_loss_function(image)
+    return self.sess.run(loss_style, {self.image : image})
 
   def get_style_loss_function(self, generated_image):
     E = []
@@ -173,8 +175,8 @@ class Transfer:
       c_grad, c_loss = self.get_content_loss_gradient(image)
       s_grad, s_loss = self.get_style_loss_gradient(image)
       print("-------------------------")
-      print("Style Loss = " + str(s_loss))
-      print("Content Loss = " + str(c_loss))
+      print("Style Loss = " + str(beta*s_loss))
+      print("Content Loss = " + str(alpha*c_loss))
       print(str(c_loss / s_loss))
       return (alpha*c_grad + beta*s_grad, alpha*c_loss + beta*s_loss)
 
