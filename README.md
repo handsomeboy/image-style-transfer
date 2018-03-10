@@ -40,3 +40,9 @@ Additional references include:
 Networks, NIPS 2015.
 
 > Nocedal, J. Updating Quasi-Newton Matrices with Limited Storage. Mathematics of Computation 1980.
+
+> Zeiler, M. ADADELTA: An Adaptive Learning Rate Method. Computing Research Repository, 2012.
+
+> Ruder, Sebastian. "An overview of gradient descent optimization algorithms." Ruder.io, 26 Jan 2016.
+
+> Mineault, Patrick. "Adagrad eliminating learning rates in stochastic gradient descent." Xcorr, 23 Jan 2014.
