@@ -86,11 +86,11 @@ class Transfer:
       out = np.clip(out, 0, 1)
 
       filename = params['type'] + '_' + params['name'] 
-      skimage.io.imsave(os.path.join(params['out_dir'],filename + '.jpg'), out[0])
+      skimage.io.imsave(os.path.join(params['out_dir'], filename + '.jpg'), out[0])
       
       plt.clf()
       plt.plot(params['loss'])
-      plt.savefig(os.path.join(params['out_dir'],filename + '_loss.jpg'))
+      plt.savefig(os.path.join(params['out_dir'], filename + '_loss.jpg'))
 
       return out 
     self.save = save
@@ -241,6 +241,8 @@ class Transfer:
                               }):
     synthetic = copy.copy(self.synthetic)
 
+    params['loss'] = []
+
     def loss_gradient(image):
       c_grad, c_loss = self.get_content_loss_gradient(image)
       s_grad, s_loss = self.get_style_loss_gradient(image)
@@ -265,7 +267,9 @@ class Transfer:
       c_loss = self.get_content_loss(image)
       s_loss = self.get_style_loss(image)
 
-      return alpha*c_loss + beta*s_loss
+      loss = alpha*c_loss + beta*s_loss
+      params['loss'].append(loss)
+      return loss
 
     plt.ion()
     plt.title('L-BFGS Image Style Transfer')

@@ -92,16 +92,15 @@ class SGD:
   #         10.0 for extremely high accuracy
   def optimize_lbfgs(self, factr=1e15):
     params = copy.copy(self.params)
-    params['loss'] = []
 
-    func   = params['J']
-    x0     = params['theta']
+    func = params['J']
+    x0 = params['theta']
     fprime = params['dJdTheta']
     if 'factr' in params:
       factr = params['factr']
 
     x, f, d = fmin_l_bfgs_b(func, x0, fprime=fprime, factr=factr)
-    params['loss'].append(d)
+    params['loss'].append(f)
     params['theta'] = x
 
     return params['save'](params)

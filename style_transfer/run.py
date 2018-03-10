@@ -1,6 +1,7 @@
 import os
 from transfer import Transfer
 import time
+import skimage
 
 WIDTH = 256
 HEIGHT = 256
@@ -25,14 +26,14 @@ transfer.set_initial_img(content_path)
 
 start = time.time()
 
-#style = transfer.open_image(style_path)
+style = transfer.open_image(style_path)
 content = transfer.open_image(content_path)
 
-#skimage.io.imsave(os.path.join(DATA_OUTPUT, "style.jpg"), style[0])
-#skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
+skimage.io.imsave(os.path.join(DATA_OUTPUT, "style.jpg"), style[0])
+skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
 
 # test content transfer
-#transfer.transfer_only_content(out_dir = DATA_OUTPUT, params = {
+# transfer.transfer_only_content(out_dir = DATA_OUTPUT, params = {
 #                                'type' : 'nesterov',
 #                                'step_size' : 100,
 #                                'iters' : 30,
