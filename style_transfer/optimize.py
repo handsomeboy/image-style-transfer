@@ -8,6 +8,7 @@ class SGD:
       'step_size' : 1,
       'iters' : 10,
       'gamma' : 0,
+      'eps' : 1e-6,
       'name' : 'SGD',
       'init_display' : lambda *args: None,
       'update_display' : lambda *args: None,
@@ -25,6 +26,7 @@ class SGD:
         step_size      : size of the update step
         iterations     : how many iterations of SGD to perform 
         gamma          : used in momentum and nesterov variations of SGD
+        eps            : epsilon value used in adadelta
         theta          : the parameter that is being updated
         dJdTheta       : the gradient of the loss function with respect to theta (returns (grad, loss))
         J              : the loss function
@@ -46,45 +48,71 @@ class SGD:
 
 
   def optimize(self):
-    params = copy.copy(self.params) 
-    params['loss'] = []
-    update = 0
-
-    grad_hist = 0
-
-    gradient, loss = (0,0)
-    params['init_display'](params)
-    for i in range(1, params['iters']):
-      # stochastic gradient descent
-      if params['type'] == 'sgd':
-        grad, loss = params['dJdTheta'](params['theta'])
-        update = params['step_size'] * grad
+    try:
+      params = copy.copy(self.params) 
+      params['loss'] = []
       
-      # stochastic gradient descent with momentum
-      elif params['type'] == 'momentum':
-        grad, loss = params['dJdTheta'](params['theta'])
-        update = params['gamma'] * update + params['step_size'] * grad
+      update = 0
+      grad_hist = 0
+      update_hist = 0
 
-      # Nesterov's accelerated gradient descent
-      elif params['type'] == 'nesterov':
-        loss = params['J'](params['theta'])
-        grad, _ = params['dJdTheta'](params['theta'] - params['gamma'] * update)
-        update = params['gamma'] * update + params['step_size'] * grad
+      gradient, loss = (0,0)
+      params['init_display'](params)
+      for i in range(1, params['iters'] + 1):
+        # stochastic gradient descent
+        if params['type'] == 'sgd':
+          grad, loss = params['dJdTheta'](params['theta'])
+          update = -params['step_size'] * grad
+        
+        elif params['type'] == 'momentum':
+          # Momentum was implemented following this blog:
+          # http://ruder.io/optimizing-gradient-descent/index.html#fn:7
+          grad, loss = params['dJdTheta'](params['theta'])
+          update = params['gamma'] * update - params['step_size'] * grad
 
-      # adaptive gradient descent
-      elif params['type'] == 'adagrad':
-        grad, loss = params['dJdTheta'](params['theta']) 
-        grad_hist += np.square(grad)
-        update = params['step_size'] * np.divide(grad, 1e-6 + np.sqrt(grad_hist))
+        elif params['type'] == 'nesterov':
+          # Nesterov was implemented following this blog:
+          #http://ruder.io/optimizing-gradient-descent/index.html#fn:7
+          loss = params['J'](params['theta'])
+          grad, _ = params['dJdTheta'](params['theta']  + params['gamma'] * update)
+          update = params['gamma'] * update - (params['step_size'] * grad)
 
-      params['theta'] -= update
-      params['loss'].append(loss)
-      params['iter'] = i
+        elif params['type'] == 'adagrad':
+          # Adagrad was ipmlemented following this example:
+          # https://xcorr.net/2014/01/23/adagrad-eliminating-learning-rates-in-stochastic-gradient-descent/
+          grad, loss = params['dJdTheta'](params['theta']) 
+          
+          # Acuumulate the gradient history
+          if np.nonzero(grad_hist):
+            grad_hist = params['gamma'] * grad_hist\
+                        + (1.0 - params['gamma']) * np.square(grad)
+          else:
+            grad_hist = np.square(grad)
+
+          adjusted_grad = np.divide(grad, np.sqrt(grad_hist + params['eps']))
+          update = -params['step_size'] * adjusted_grad
+        
+        elif params['type'] == 'adadelta':
+          # Adadelta was implemented followeing this paper:
+          # https://arxiv.org/pdf/1212.5701.pdf
+          grad, loss = params['dJdTheta'](params['theta'])
+          grad_hist = params['gamma'] * grad_hist + (1.0 - params['gamma']) * np.square(grad)
+          update = -np.multiply(np.divide(
+                                          np.sqrt(update_hist + params['eps']), 
+                                          np.sqrt(grad_hist + params['eps'])), 
+                                          grad)
+          update_hist = params['gamma'] * update_hist + (1.0 - params['gamma']) * np.square(update)
+
+        params['theta'] += update
+        params['loss'].append(loss)
+        params['iter'] = i
+        
+        params['update_display'](params)
       
-      params['update_display'](params)
-
-    return params['save'](params)
-
+      return params['save'](params)
+    
+    except KeyboardInterrupt:
+      return params['save'](params)
 
   # limited-memory BFGS
   # factr:  1e12 for low accuracy

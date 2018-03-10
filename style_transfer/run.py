@@ -1,86 +1,92 @@
+from argparse import *
 import os
 from transfer import Transfer
 import time
 import skimage
 
-WIDTH = 256
-HEIGHT = 256
+WIDTH = 244
+HEIGHT = 244
 
 DATA_INPUT = 'data/input/'
 DATA_OUTPUT = 'data/output/'
 
-# style_path = os.path.join(DATA_INPUT, 'style/vangogh.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/rocks.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/checkerboard.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/close_s.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/matisse.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/seurat.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/kandinsky.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/vermeer.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/davinci.jpg')
-style_path = os.path.join(DATA_INPUT, 'style/colorfulpoly.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/klimt.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/picasso.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/monet.jpg')
-# style_path = os.path.join(DATA_INPUT, 'style/dali.jpg')
+if __name__ == "__main__":
+  # Coose content and style image.
+  style_path = os.path.join(DATA_INPUT, 'style/vangogh.jpg')
+  content_path = os.path.join(DATA_INPUT, 'content/baker.jpg')
 
-content_path = os.path.join(DATA_INPUT, 'style/colorfulpoly.jpg')
+  transfer = Transfer(style_path, content_path, WIDTH, HEIGHT,
+                      initial = None)
+  transfer.set_initial_img(content_path)
 
-content_path = os.path.join(DATA_INPUT, 'content/baker.jpg')
-# content_path = os.path.join(DATA_INPUT, 'content/jarosz.jpg')
-# content_path = os.path.join(DATA_INPUT, 'content/lily.jpg')
-# content_path = os.path.join(DATA_INPUT, 'content/trondheim.jpg')
-# content_path = os.path.join(DATA_INPUT, 'content/bailey.jpg')
+  start = time.time()
 
-synthetic_name = os.path.splitext(style_path)[0].split('/')[-1]
-synthetic_name += '_on_'
-synthetic_name += os.path.splitext(content_path)[0].split('/')[-1]
+  style = transfer.open_image(style_path)
+  content = transfer.open_image(content_path)
+  
+  # Saves a copy of the style and content image (in reshaped form).
+  skimage.io.imsave(os.path.join(DATA_OUTPUT, "style.jpg"), style[0])
+  skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
 
-transfer = Transfer(style_path, content_path, WIDTH, HEIGHT,
-                    initial = None,
-                    content_layers = ['conv4_2'])
+  # Select the style transfer methods to run.
+  rand2style = False
+  rand2content = True
+  style2img = False
+  style2imgLBFGS = False
 
-# transfer.set_initial_img(content_path)
+  # Select if you want your initial image to be random or content.
+  rand = True
 
-start = time.time()
+  # test content transfer
+  if rand2content:
+    transfer.set_random_initial_img()
+    transfer.transfer_only_content(out_dir = DATA_OUTPUT, params = {
+                                  'type' : 'momentum',
+                                  'step_size' : 100,
+                                  'iters' : 30,
+                                  'gamma' : 0.9,
+                                  'eps': 1e-6
+                                })
 
-style = transfer.open_image(style_path)
-content = transfer.open_image(content_path)
+  if rand2style:
+    transfer.set_random_initial_img()
+    transfer.transfer_only_style(out_dir = DATA_OUTPUT, params = {
+                                  'type' : 'adadelta',
+                                  'step_size' : 1e-1,
+                                  'iters' : 15,
+                                  'gamma' : 0.9,
+                                  'eps': 1e-6
+                                })
 
-skimage.io.imsave(os.path.join(DATA_OUTPUT, "style.jpg"), style[0])
-skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
+  # NOTE: paper suggests alpha/beta = 1e-3
 
-# test content transfer
-# transfer.transfer_only_content(out_dir = DATA_OUTPUT, params = {
-#                                'type' : 'nesterov',
-#                                'step_size' : 100,
-#                                'iters' : 30,
-#                                'gamma' : 0.9,
-#                              })
-
-# test style transfer
-transfer.transfer_only_style(step_size = 1.0e-9, iters = 100, out_dir = DATA_OUTPUT)
-
-
-# NOTE: paper suggests alpha/beta = 1e-3
-
-# test entire transfer
-# transfer.transfer_style_to_image(out_dir = DATA_OUTPUT,
-#                                  alpha = 1,       # content weighting
-#                                  beta = 1e3,      # style weighting
-#                                  params = {
-#                                    'type' : 'adagrad',
-#                                    'step_size' : 20,
-#                                    'iters' : 1,
-#                                    'gamma' : 2
-#                                  })
-
-# test transfer using L-BFGS optimization
-# transfer.transfer_style_to_image_lbfgs(out_dir = DATA_OUTPUT,
-#                                  alpha = 0,       # content weighting
-#                                  beta = 1,      # style weighting
-#                                  params = { 'type' : 'lbfgs',
-#                                             'factr' : 1e15})
-
-end = time.time()
-print('Total runtime: {} seconds'.format(end - start))
+  # test entire transfer
+  if style2img:
+    if rand:
+      transfer.set_random_initial_img()
+    else:
+      transfer.set_initial_img(content_path)
+    
+    transfer.transfer_style_to_image(out_dir = DATA_OUTPUT,
+                                   alpha = 5e5,       # content weighting
+                                   beta = 1,      # style weighting
+                                   params = {
+                                      'type' : 'momentum',
+                                      'step_size' : 1e-6,
+                                      'iters' : 100,
+                                      'gamma' : 0.9,
+                                      'eps' : 1e-6
+                                   })
+  if style2imgLBFGS:
+    transfer.transfer_style_to_image_lbfgs(out_dir = DATA_OUTPUT,
+                                   alpha = 1,       # content weighting
+                                   beta = 1e3,      # style weighting
+                                   params = {
+                                     'type' : 'adagrad',
+                                     'step_size' : 20,
+                                     'iters' : 1,
+                                     'gamma' : 2
+                                   })
+  
+  end = time.time()
+  print('Total runtime: {} seconds'.format(end - start))
