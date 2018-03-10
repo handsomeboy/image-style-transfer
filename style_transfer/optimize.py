@@ -41,8 +41,8 @@ class SGD:
     self.params.update(SGD.default_params)
     self.params.update(params)
     
-    for k,v in self.params.iteritems():
-      print(str(k) + " = " + str(v))
+    for k, v in self.params.items():
+      print("{} = {}".format(k, v))
 
 
   def optimize(self):
@@ -94,9 +94,11 @@ class SGD:
     params = copy.copy(self.params)
     params['loss'] = []
 
-    func = params['J']
-    x0 = params['theta']
+    func   = params['J']
+    x0     = params['theta']
     fprime = params['dJdTheta']
+    if 'factr' in params:
+      factr = params['factr']
 
     x, f, d = fmin_l_bfgs_b(func, x0, fprime=fprime, factr=factr)
     params['loss'].append(d)

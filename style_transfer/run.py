@@ -59,7 +59,8 @@ content = transfer.open_image(content_path)
 transfer.transfer_style_to_image_lbfgs(out_dir = DATA_OUTPUT,
                                  alpha = 1,       # content weighting
                                  beta = 1e3,      # style weighting
-                                 params = {})
+                                 params = { 'type' : 'lbfgs',
+                                            'factr' : 1e12})
 
 end = time.time()
 print('Total runtime: {} seconds'.format(end - start))
