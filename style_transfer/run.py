@@ -2,8 +2,8 @@ import os
 from transfer import Transfer
 import time
 
-WIDTH = 244
-HEIGHT = 244
+WIDTH = 256
+HEIGHT = 256
 
 DATA_INPUT = 'data/input/'
 DATA_OUTPUT = 'data/output/'
@@ -23,6 +23,12 @@ transfer = Transfer(style_path, content_path, WIDTH, HEIGHT,
 transfer.set_initial_img(content_path)
 
 start = time.time()
+
+#style = transfer.open_image(style_path)
+content = transfer.open_image(content_path)
+
+#skimage.io.imsave(os.path.join(DATA_OUTPUT, "style.jpg"), style[0])
+#skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
 
 # test content transfer
 #transfer.transfer_only_content(out_dir = DATA_OUTPUT, params = {
@@ -54,7 +60,6 @@ transfer.transfer_style_to_image_lbfgs(out_dir = DATA_OUTPUT,
                                  alpha = 1,       # content weighting
                                  beta = 1e3,      # style weighting
                                  params = {})
-
 
 end = time.time()
 print('Total runtime: {} seconds'.format(end - start))

@@ -16,8 +16,10 @@ NUM_CHANNELS = 3    # number of color channels
 class Transfer:
 
   def __init__(self, style, content, width = 240, height = 240, initial = None, 
-               content_layers = ['conv4_2'], 
-               style_layers = ['conv1_1','conv2_1','conv3_1','conv4_1','conv5_1']):
+               content_layers = ["conv4_2"], 
+               style_layers = ["conv1_1","conv2_1",
+                               "conv3_1","conv4_1",
+                               "conv5_1"]):
     self.content_layers = content_layers
     self.style_layers = style_layers
 
@@ -165,7 +167,6 @@ class Transfer:
       image = self.sess.run(image, {self.image : self.synthetic})
     loss_style = self.get_style_loss_function()
     return self.sess.run(loss_style, {self.image : image})
-
 
   def get_style_loss_function(self):
     E = []

@@ -40,6 +40,9 @@ class SGD:
     self.params = {}
     self.params.update(SGD.default_params)
     self.params.update(params)
+    
+    for k,v in self.params.iteritems():
+      print(str(k) + " = " + str(v))
 
 
   def optimize(self):
@@ -70,7 +73,7 @@ class SGD:
 
       # adaptive gradient descent
       elif params['type'] == 'adagrad':
-        grad, loss = params['dJdTheta'](params['theta'] - params['gamma'] * update) 
+        grad, loss = params['dJdTheta'](params['theta']) 
         grad_hist += np.square(grad)
         update = params['step_size'] * np.divide(grad, 1e-6 + np.sqrt(grad_hist))
 
