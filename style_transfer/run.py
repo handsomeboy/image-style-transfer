@@ -8,8 +8,9 @@ HEIGHT = 256
 DATA_INPUT = 'data/input/'
 DATA_OUTPUT = 'data/output/'
 
-style_path = os.path.join(DATA_INPUT, 'style/vangogh.jpg')
+# style_path = os.path.join(DATA_INPUT, 'style/vangogh.jpg')
 # style_path = os.path.join(DATA_INPUT, 'style/rocks.jpg')
+style_path = os.path.join(DATA_INPUT, 'style/checkerboard.jpg')
 content_path = os.path.join(DATA_INPUT, 'content/baker.jpg')
 
 synthetic_name = os.path.splitext(style_path)[0].split('/')[-1]
@@ -60,7 +61,7 @@ transfer.transfer_style_to_image_lbfgs(out_dir = DATA_OUTPUT,
                                  alpha = 1,       # content weighting
                                  beta = 1e3,      # style weighting
                                  params = { 'type' : 'lbfgs',
-                                            'factr' : 1e12})
+                                            'factr' : 1e13})
 
 end = time.time()
 print('Total runtime: {} seconds'.format(end - start))
