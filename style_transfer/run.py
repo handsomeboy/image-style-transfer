@@ -52,13 +52,8 @@ start = time.time()
 # test transfer using L-BFGS optimization
 transfer.transfer_style_to_image_lbfgs(out_dir = DATA_OUTPUT,
                                  alpha = 1,       # content weighting
-                                 beta = 5e2,      # style weighting
-                                 params = {
-                                   'type' : 'adagrad',
-                                   'step_size' : 20,
-                                   'iters' : 1,
-                                   'gamma' : 2
-                                 })
+                                 beta = 1e3,      # style weighting
+                                 params = {})
 
 
 end = time.time()

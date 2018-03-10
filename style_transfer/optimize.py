@@ -84,14 +84,16 @@ class SGD:
 
 
   # limited-memory BFGS
-  def optimize_lbfgs(self):
+  # factr:  1e12 for low accuracy
+  #         1e7 for moderate accuracy
+  #         10.0 for extremely high accuracy
+  def optimize_lbfgs(self, factr=1e15):
     params = copy.copy(self.params)
     params['loss'] = []
 
     func = params['J']
     x0 = params['theta']
     fprime = params['dJdTheta']
-    factr = 1e15    # small factor = high accuracy
 
     x, f, d = fmin_l_bfgs_b(func, x0, fprime=fprime, factr=factr)
     params['loss'].append(d)
