@@ -1,19 +1,39 @@
-from argparse import *
 import os
 from transfer import Transfer
 import time
 import skimage
 
+###########################################################
+# Select parameters
+###########################################################
 WIDTH = 244
 HEIGHT = 244
 
 DATA_INPUT = 'data/input/'
 DATA_OUTPUT = 'data/output/'
 
+STYLE_IMAGE = 'style/vangogh.jpg'
+CONTENT_IMAGE = 'content/baker.jpg'
+
+# Select the style transfer methods to run.
+rand2style = False
+rand2content = False
+style2img = False
+style2imgLBFGS = True
+
+# Select if you want your initial image to be random or content.
+rand = True
+
+
+###########################################################
+# Execution
+# For advanced tuning,
+###########################################################
+
 if __name__ == "__main__":
-  # Coose content and style image.
-  style_path = os.path.join(DATA_INPUT, 'style/vangogh.jpg')
-  content_path = os.path.join(DATA_INPUT, 'content/baker.jpg')
+  # Choose content and style image.
+  style_path = os.path.join(DATA_INPUT, STYLE_IMAGE)
+  content_path = os.path.join(DATA_INPUT, CONTENT_IMAGE)
 
   transfer = Transfer(style_path, content_path, WIDTH, HEIGHT,
                       initial = None)
@@ -28,16 +48,6 @@ if __name__ == "__main__":
   skimage.io.imsave(os.path.join(DATA_OUTPUT, "style.jpg"), style[0])
   skimage.io.imsave(os.path.join(DATA_OUTPUT, "content.jpg"), content[0])
 
-  # Select the style transfer methods to run.
-  rand2style = False
-  rand2content = True
-  style2img = False
-  style2imgLBFGS = False
-
-  # Select if you want your initial image to be random or content.
-  rand = True
-
-  # test content transfer
   if rand2content:
     transfer.set_random_initial_img()
     transfer.transfer_only_content(out_dir = DATA_OUTPUT, params = {
@@ -82,10 +92,7 @@ if __name__ == "__main__":
                                    alpha = 1,       # content weighting
                                    beta = 1e3,      # style weighting
                                    params = {
-                                     'type' : 'adagrad',
-                                     'step_size' : 20,
-                                     'iters' : 1,
-                                     'gamma' : 2
+                                     'type' : 'lbfgs'
                                    })
   
   end = time.time()

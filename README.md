@@ -19,7 +19,20 @@ We were given permission by Professor Jarosz to use Python rather than C for our
 
 ## Usage
 
-Execute
+In `run.py`, update the variables at top to select the style and content images desired, select the type of style transfer, and the optimization initialization. 
+
+Types of style transfer are:
+
+- `rand2style`: white noise image to style transfer
+- `rand2content`: white noise image to content transfer
+- `style2img`: style transfer using gradient descent
+- `style2imgLBFGS`: style transfer using L-BFGS
+
+For style transfer, if `rand = True`, the optimization will be initialized using a white noise image. Otherwise, the optimization will be initialized using the content image.
+
+For advanced tuning, modify the parameters passed to the Transfer class.
+
+To run the Image Style Transfer program, execute
 
 ```sh
 python run.py

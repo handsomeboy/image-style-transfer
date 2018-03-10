@@ -52,6 +52,8 @@ class Transfer:
     for G in self.gram_matrix_functions:
       self.target_gram_matrices.append(self.sess.run(G, {self.image : self.style}))
 
+    self.synthetic = self.image
+
   
 
   #############################################################################
