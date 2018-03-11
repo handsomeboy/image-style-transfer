@@ -198,6 +198,8 @@ class Transfer:
     synthetic = copy.copy(self.synthetic)
 
     params['loss'] = []
+    params['iter'] = 0          # track number of iterations
+    params['name'] = 'L-BFGS Image Style Transfer'
 
     def loss_gradient(image):
       c_grad, c_loss = self.get_content_loss_gradient(image)
@@ -217,6 +219,7 @@ class Transfer:
       result = np.clip(result, 0, 1)
       im.set_data(result)
       skimage.io.imsave(os.path.join(out_dir, 'lbfgs_style_transfer.jpg'), result[0])
+      plt.title('{} (iteration {})'.format(params['name'], params['iter']))
       plt.pause(PAUSE_LEN)
 
       # get loss and compute loss function
@@ -224,6 +227,8 @@ class Transfer:
       s_loss = self.get_style_loss(image)
 
       loss = alpha*c_loss + beta*s_loss
+
+      params['iter'] += 1
       params['loss'].append(loss)
       return loss
 
@@ -237,7 +242,6 @@ class Transfer:
     theta = tf.cast(theta, tf.float64)       # convert to tf.float64. necessary for scipy.optimize
     theta = self.sess.run(theta, {self.image : synthetic})
     base_params = {
-      'name' : 'Image Style Transfer',
       'theta' : theta,
       'dJdTheta' : loss_gradient,
       'J' : loss,
@@ -313,18 +317,21 @@ class Transfer:
     image = utils.load_image2(image_path, self.width, self.height)
     return image.reshape((1, self.width, self.height, NUM_CHANNELS))
 
+
   # Shared 'lambda' functions used inside of optimize to display images
   # as they are being updated/generated
   def _init_display(self, params):
     plt.title(params['name'])
     plt.ion()
     params['im'] = plt.imshow(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
-    
+
+
   def _update_display(self, params):
     params['im'].set_data(np.clip(self.vgg.toRGB(params['theta'])[0], 0, 1))
     plt.pause(PAUSE_LEN)
     print('-------')
     print('Loss on iteration {}: {}'.format(params['iter'], params['loss'][-1]))
+
 
   def _save(self, params):
     image = params['theta']
@@ -336,14 +343,14 @@ class Transfer:
     out = np.clip(out, 0, 1)
 
     filename = params['type'] + '_' + params['name'] 
-    skimage.io.imsave(os.path.join(params['out_dir'],filename + '.jpg'), out[0])
+    skimage.io.imsave(os.path.join(params['out_dir'], filename + '.jpg'), out[0])
     
     plt.clf()
     f, ax = plt.subplots(1)
     ax.set_ylim(bottom=0, top = max(params['loss']))
 
     plt.plot(params['loss'])
-    plt.savefig(os.path.join(params['out_dir'],filename + '_loss.jpg'))
+    plt.savefig(os.path.join(params['out_dir'], filename + '_loss.jpg'))
 
     return out 
 

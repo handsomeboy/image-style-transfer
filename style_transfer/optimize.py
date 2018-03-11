@@ -78,11 +78,11 @@ class SGD:
           update = params['gamma'] * update - (params['step_size'] * grad)
 
         elif params['type'] == 'adagrad':
-          # Adagrad was ipmlemented following this example:
+          # AdaGrad was ipmlemented following this example:
           # https://xcorr.net/2014/01/23/adagrad-eliminating-learning-rates-in-stochastic-gradient-descent/
           grad, loss = params['dJdTheta'](params['theta']) 
           
-          # Acuumulate the gradient history
+          # Accumulate the gradient history
           if np.nonzero(grad_hist):
             grad_hist = params['gamma'] * grad_hist\
                         + (1.0 - params['gamma']) * np.square(grad)
@@ -114,7 +114,7 @@ class SGD:
     except KeyboardInterrupt:
       return params['save'](params)
 
-  # limited-memory BFGS
+  # Limited-memory BFGS
   # factr:  1e12 for low accuracy
   #         1e7 for moderate accuracy
   #         10.0 for extremely high accuracy

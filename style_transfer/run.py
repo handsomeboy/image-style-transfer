@@ -6,8 +6,8 @@ import skimage
 ###########################################################
 # Select parameters
 ###########################################################
-WIDTH = 244
-HEIGHT = 244
+WIDTH = 200
+HEIGHT = 200
 
 DATA_INPUT = 'data/input/'
 DATA_OUTPUT = 'data/output/'
@@ -27,7 +27,7 @@ rand = True
 
 ###########################################################
 # Execution
-# For advanced tuning,
+# For advanced tuning, modify the parameters 'params' below
 ###########################################################
 
 if __name__ == "__main__":
@@ -70,7 +70,6 @@ if __name__ == "__main__":
 
   # NOTE: paper suggests alpha/beta = 1e-3
 
-  # test entire transfer
   if style2img:
     if rand:
       transfer.set_random_initial_img()
@@ -78,8 +77,8 @@ if __name__ == "__main__":
       transfer.set_initial_img(content_path)
     
     transfer.transfer_style_to_image(out_dir = DATA_OUTPUT,
-                                   alpha = 5e5,       # content weighting
-                                   beta = 1,      # style weighting
+                                   alpha = 5e5,     # content weighting
+                                   beta = 1,        # style weighting
                                    params = {
                                       'type' : 'momentum',
                                       'step_size' : 1e-6,
@@ -92,8 +91,9 @@ if __name__ == "__main__":
                                    alpha = 1,       # content weighting
                                    beta = 1e3,      # style weighting
                                    params = {
-                                     'type' : 'lbfgs'
-                                   })
+                                     'type' : 'lbfgs',
+                                     'factr' : 4e14
+                                   },)
   
   end = time.time()
   print('Total runtime: {} seconds'.format(end - start))
